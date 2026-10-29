@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#0d1030">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700&family=Cinzel:wght@600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20261029d">
+<link rel="stylesheet" href="css/style.css?v=20261029g">
 </head>
 <body>
 
@@ -110,7 +110,7 @@
     <b>教師預覽</b>
     <span class="pv-group"><button data-pv="new">全新</button><button data-pv="mid">進行中</button><button data-pv="all">全數破關</button></span>
     <span class="pv-group"><button data-pstage="1">Lv.1</button><button data-pstage="2">Lv.6</button><button data-pstage="3">Lv.16</button><button data-pstage="4">Lv.26</button></span>
-    <span class="pv-group"><button id="pv-gender">女生造型</button><button id="pv-pet">寵物</button></span>
+    <span class="pv-group"><button id="pv-gender">女生造型</button><button id="pv-opening">▶ 開場劇情</button><button id="pv-pet">寵物</button></span>
   </div>
   <p class="ui-hint" id="ui-hint">拖曳可移動地圖 ・ 點擊據點進入</p>
 </section>
@@ -179,10 +179,25 @@
   </div>
 </div>
 
+<!-- ========== 人物對話 ========== -->
+<div class="dlg" id="dlg" hidden>
+  <div class="dlg-stage">
+    <div class="dlg-side left"><img id="dlg-player" class="dlg-por" alt=""><img id="dlg-pet" class="dlg-por pet" alt=""></div>
+    <div class="dlg-side right"><img id="dlg-boss" class="dlg-por dlg-bossimg" alt=""></div>
+  </div>
+  <div class="dlg-box" id="dlg-box">
+    <span class="dlg-name" id="dlg-name"></span>
+    <p class="dlg-text" id="dlg-text"></p>
+    <span class="dlg-next">▼</span>
+  </div>
+  <button class="dlg-skip" id="dlg-skip">略過對話 ▸▸</button>
+</div>
+
 <div class="toast" id="toast" hidden></div>
 
-<script src="js/courses.js?v=20261029d"></script>
-<script src="js/audio.js?v=20261029d"></script>
-<script src="js/app.js?v=20261029d"></script>
+<script src="js/courses.js?v=20261029g"></script>
+<script src="js/story.js?v=20261029g"></script>
+<script src="js/audio.js?v=20261029g"></script>
+<script src="js/app.js?v=20261029g"></script>
 </body>
 </html>

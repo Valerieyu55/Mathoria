@@ -192,6 +192,7 @@
     pan = { x: 0, y: 0 }; layoutStage();
     const cur = currentStation(); if (cur) centerOn(cur);
     updateSoundBtn();
+    if (MODE !== "preview" && !seen("opening")) setTimeout(() => playStory(S.opening, null, () => markSeen("opening")), 500);
     if (API && isReal()) { apiPost({ action: "login" }).catch(() => {}); flushOutbox().then(syncFromCloud); }
   }
   function renderAll() { renderHUD(); renderMap(); renderList(); renderQuest(); if (typeof renderModeBar === "function" && MODE !== "student") renderModeBar(); }
@@ -262,7 +263,7 @@
 
   /* ---------- 據點面板 ---------- */
   let openStationId = null;
-  function openStation(id) {
+  function renderStation(id) {
     const st = C.stations.find(s => s.id === id); if (!st) return;
     openStationId = id;
     const state = stateOf(st), p = stationProgress(st);
@@ -289,7 +290,7 @@
         <div class="st-section"><h3>魔王戰</h3>
           <div class="boss ${bossDone ? "defeated" : ""}">
             <img class="b-art" src="assets/boss/boss_${st.id}.png" alt="${st.boss.name}" onerror="this.remove()">
-            <p class="b-name">${bossDone ? "✦ 已擊敗：" : "👾 "}${st.boss.name}</p>
+            <p class="b-name">${bossDone ? "✦ 已擊敗：" : "👾 "}${st.boss.name} <button class="b-replay" data-replay="${st.id}" title="重播魔王對話">▶ 對話</button></p>
             <p class="b-myth"><b>它的迷思：</b>${st.boss.myth}</p>
             <p class="b-hint">破解之道：${st.boss.hint}</p>
             ${bossDone ? `<p class="b-note">你已獲得徽章與 ${bossXP} XP。</p>` : `
@@ -313,7 +314,8 @@
     prog.done[id] = true; prog.log.push({ t: Date.now(), id, xp });
     if (stat && prog.stats[stat] !== undefined) prog.stats[stat] += 1;
     gainXP(xp, "任務完成");
-    openStation(openStationId);
+    renderStation(openStationId);
+    maybeBossBefore(C.stations.find(s => s.id === openStationId));
     if (API && isReal()) { const item = { action: "lesson", id, xp }; apiPost(item).then(r => { if (!r.ok) queue(item); }).catch(() => queue(item)); }
   }
   async function defeatBoss(stId, xp) {
@@ -335,8 +337,8 @@
     }
     prog.bosses[stId] = true; prog.log.push({ t: Date.now(), id: "boss:" + stId, xp });
     A.sfx("boss");
-    gainXP(xp, `擊敗「${st.boss.name}」，獲得徽章！`);
-    openStation(stId);
+    renderStation(stId);
+    playStory(storyFor(stId, "bossAfter"), st, () => { gainXP(xp, `擊敗「${st.boss.name}」，獲得徽章！`); renderStation(stId); });
   }
   function gainXP(xp, why) {
     const before = levelInfo(prog.xp), bs = stageOf(before.lv);
@@ -349,12 +351,89 @@
     else A.sfx("xp");
   }
   function showLevelUp(evolved, lv, st) {
+    if (evolved) pendingEvolve = st.id;
     $("#levelup-kicker").textContent = evolved ? "EVOLUTION!" : "LEVEL UP!";
     $("#levelup-img").src = charImg(st.id);
     $("#levelup-title").textContent = evolved ? `進化為「${st.name}」！` : `Lv.${lv}`;
     $("#levelup-desc").textContent = evolved ? st.desc : `${st.name}，距離下一次進化更近了。`;
     $("#chip-face").src = faceImg(2);
     setTimeout(() => { $("#modal-levelup").hidden = false; }, 350);
+  }
+
+  /* ---------- 人物對話 ---------- */
+  const S = window.MATHORIA_STORY || { opening: [], stations: {}, evolve: {}, petVoice: {} };
+  let pendingEvolve = null;
+  const seen = k => !!(prog && prog.seen && prog.seen[k]);
+  function markSeen(k) { prog.seen = prog.seen || {}; prog.seen[k] = true; saveProgress(); }
+  const storyFor = (id, part) => (S.stations[id] && S.stations[id][part]) || [];
+  function fill(text, st) {
+    const pet = C.pets.find(p => p.id === profile.pet) || C.pets[0], v = S.petVoice[pet.id] || {};
+    return text.replace(/\{name\}/g, profile.name).replace(/\{pet\}/g, pet.name).replace(/\{petIntro\}/g, v.intro || "")
+      .replace(/\{boss\}/g, st ? st.boss.name : "").replace(/\{station\}/g, st ? st.name : "");
+  }
+  function withTic(text) {
+    const pet = C.pets.find(p => p.id === profile.pet) || C.pets[0], tic = (S.petVoice[pet.id] || {}).tic || "";
+    if (!tic) return text;
+    const m = text.match(/^(.*?)([？！。]?)$/s);
+    return m[1] + tic + m[2];
+  }
+  let dlgBusy = false; const dlgQueue = [];
+  function playStory(lines, st, done) {
+    if (!lines || !lines.length) { if (done) done(); return; }
+    if (dlgBusy) { dlgQueue.push([lines, st, done]); return; }   /* 正在播別段：排隊，播完再接著播 */
+    dlgBusy = true;
+    const box = $("#dlg"), stage = stageOf(levelInfo(prog.xp).lv).id;
+    const P = $("#dlg-player"), PET = $("#dlg-pet"), B = $("#dlg-boss");
+    P.src = charImg(stage); PET.src = petImg(stage);
+    const hasBoss = !!(st && lines.some(l => l.who === "boss"));
+    B.hidden = !hasBoss; if (hasBoss) { B.src = `assets/boss/boss_${st.id}.png`; B.onerror = () => { B.hidden = true; }; }
+    const pet = C.pets.find(p => p.id === profile.pet) || C.pets[0];
+    const names = { player: profile.name, pet: pet.name, boss: st ? st.boss.name : "", narrator: "學院之聲" };
+    let i = -1, typing = null, full = "";
+    const finish = () => { clearInterval(typing); typing = null; $("#dlg-text").textContent = full; };
+    const show = () => {
+      i++;
+      if (i >= lines.length) { close(); return; }
+      const l = lines[i];
+      let text = fill(l.text, st); if (l.who === "pet") text = withTic(text);
+      full = text;
+      $("#dlg-name").textContent = names[l.who] || "";
+      $("#dlg-box").className = "dlg-box who-" + l.who;
+      [[P, "player"], [PET, "pet"], [B, "boss"]].forEach(([el, w]) => {
+        el.classList.toggle("on", l.who === w); el.classList.toggle("off", l.who !== w && l.who !== "narrator");
+        el.classList.remove("m-happy", "m-shock", "m-think", "m-angry");
+        if (l.who === w && l.mood) { void el.offsetWidth; el.classList.add("m-" + l.mood); }
+      });
+      const T = $("#dlg-text"); T.textContent = ""; let k = 0; clearInterval(typing);
+      typing = setInterval(() => { k++; T.textContent = text.slice(0, k); if (k >= text.length) { clearInterval(typing); typing = null; } }, 28);
+    };
+    const next = () => { A.sfx("click"); if (typing) finish(); else show(); };
+    const key = e => { if (["Enter", " ", "ArrowRight"].includes(e.key)) { e.preventDefault(); e.stopPropagation(); next(); } if (e.key === "Escape") { e.stopPropagation(); close(); } };
+    const close = () => {
+      clearInterval(typing); box.hidden = true; dlgBusy = false;
+      box.removeEventListener("click", onClick); document.removeEventListener("keydown", key, true);
+      if (done) done();
+      if (dlgQueue.length && !dlgBusy) { const q = dlgQueue.shift(); setTimeout(() => playStory(...q), 250); }
+    };
+    const onClick = e => { if (e.target.closest("#dlg-skip")) { close(); return; } next(); };
+    box.addEventListener("click", onClick); document.addEventListener("keydown", key, true);
+    box.hidden = false; show();
+  }
+  function allDone(st) { return st.lessons.every(l => prog.done[l.id]) && (!st.project || prog.done[st.project.id]); }
+  function maybeBossBefore(st) {
+    if (!st || prog.bosses[st.id] || !allDone(st) || seen("bossBefore:" + st.id)) return;
+    setTimeout(() => playStory(storyFor(st.id, "bossBefore"), st, () => markSeen("bossBefore:" + st.id)), 700);
+  }
+  function openStation(id) {
+    const st = C.stations.find(s => s.id === id); if (!st) return;
+    const open = () => { renderStation(id); maybeBossBefore(st); };
+    if (stateOf(st) !== "locked" && !seen("enter:" + id) && storyFor(id, "enter").length) {
+      playStory(storyFor(id, "enter"), st, () => { markSeen("enter:" + id); open(); });
+    } else open();
+  }
+  function afterLevelUp() {
+    if (!pendingEvolve) return; const s = pendingEvolve; pendingEvolve = null;
+    playStory(S.evolve[s], null);
   }
 
   /* ---------- 圖鑑 ---------- */
@@ -427,7 +506,8 @@
       const stBtn = e.target.closest("[data-st]"); if (stBtn) { openStation(stBtn.dataset.st); return; }
       const d = e.target.closest("[data-done]"); if (d) { completeLesson(d.dataset.done, +d.dataset.xp, d.dataset.stat); return; }
       const b = e.target.closest("[data-boss]"); if (b) { defeatBoss(b.dataset.boss, +b.dataset.xp); return; }
-      if (e.target.closest("[data-close]")) { e.target.closest(".modal").hidden = true; A.sfx("click"); return; }
+      const rp = e.target.closest("[data-replay]"); if (rp) { const s = C.stations.find(x => x.id === rp.dataset.replay); playStory(storyFor(s.id, prog.bosses[s.id] ? "bossAfter" : "bossBefore"), s); return; }
+      if (e.target.closest("[data-close]")) { const m = e.target.closest(".modal"); m.hidden = true; A.sfx("click"); if (m.id === "modal-levelup") afterLevelUp(); return; }
       if (e.target.classList.contains("modal")) { e.target.hidden = true; }
     });
     document.addEventListener("keydown", e => { if (e.key === "Escape") $$(".modal").forEach(m => m.hidden = true); });
@@ -446,6 +526,7 @@
     $("#mode-cta").addEventListener("click", () => { MODE = "student"; prog = null; $("#screen-hub").hidden = true; $("#screen-gate").hidden = false; renderModeBar(); $("#btn-start").click(); });
     $$("#preview-bar [data-pv]").forEach(b => b.addEventListener("click", () => applyPreview(b.dataset.pv)));
     $$("#preview-bar [data-pstage]").forEach(b => b.addEventListener("click", () => applyPreviewStage(+b.dataset.pstage)));
+    $("#pv-opening").addEventListener("click", () => playStory(S.opening, null));
     $("#pv-gender").addEventListener("click", () => { profile.gender = profile.gender === "male" ? "female" : "male"; renderAll(); });
     $("#pv-pet").addEventListener("click", () => { const i = C.pets.findIndex(p => p.id === profile.pet); profile.pet = C.pets[(i + 1) % C.pets.length].id; renderAll(); });
     $("#btn-sound").addEventListener("click", () => { audioArmed = true; A.toggle(); updateSoundBtn(); });
