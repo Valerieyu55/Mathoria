@@ -213,6 +213,10 @@ window.MATHORIA_AUDIO = (function () {
           osc("square", f(ch[2]), at, d, 0.04, B, { lp: 2500, attack: 0.01, release: Math.min(0.12, d * 0.6) });
         });
         osc("sine", 100, t + 0.98, 0.5, 0.35, B, { to: 40 }); noise(t + 0.98, 1.4, 0.06, B, { type: "highpass", from: 6000 }); break;
+      case "correct": seq([84, 88, 91], 0.14, 0.06, "square", 0.06, { lp: 4000 }); seq([96], 0.4, 0.18, "sine", 0.08, { wet: 0.6 }); break;
+      case "wrong": osc("sawtooth", 220, t, 0.35, 0.09, B, { to: 110, lp: 1200 }); osc("square", 233, t, 0.35, 0.05, B, { to: 116, lp: 900 }); break;
+      case "tick": osc("square", 1000, t, 0.04, 0.04, B, { lp: 3000, attack: 0.001, release: 0.03 }); break;
+      case "defeat": seq([67, 63, 60, 55], 0.5, 0.28, "triangle", 0.1, { lp: 1500, wet: 0.5 }); osc("sine", 60, t + 0.9, 1.4, 0.25, B, { to: 35 }); break;
       case "boss": sfx("crit"); break;   /* 舊名稱相容 */
     }
   }

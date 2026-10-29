@@ -85,6 +85,11 @@
       if (!r.ok) return;
       let added = 0;
       r.events.forEach(ev => {
+        if (ev.type === "lesson" && /^boss:/.test(ev.id)) {   /* 魔王戰勝利（相容紀錄） */
+          const sid = ev.id.slice(5).split("#")[0];
+          if (!prog.done[ev.id]) { prog.done[ev.id] = true; prog.xp += ev.xp; added++; }
+          prog.bosses[sid] = true; return;
+        }
         if (ev.type === "lesson" && !prog.done[ev.id]) {
           prog.done[ev.id] = true; prog.xp += ev.xp; added++;
           const l = lessonById(ev.id); if (l && prog.stats[l.stat] !== undefined) prog.stats[l.stat] += 1;
@@ -293,11 +298,9 @@
             <p class="b-name">${bossDone ? "✦ 已擊敗：" : "👾 "}${st.boss.name} <button class="b-replay" data-replay="${st.id}" title="重播魔王對話">▶ 對話</button></p>
             <p class="b-myth"><b>它的迷思：</b>${st.boss.myth}</p>
             <p class="b-hint">破解之道：${st.boss.hint}</p>
-            ${bossDone ? `<p class="b-note">你已獲得徽章與 ${bossXP} XP。</p>` : `
-              ${isReal() ? `<div class="b-form"><input id="boss-code" placeholder="核可碼" maxlength="6"><button class="btn-gold" data-boss="${st.id}" data-xp="${bossXP}">擊破迷思 ✦</button><span id="boss-err" class="err" hidden></span></div>
-              <p class="b-note">完成本章段考或老師指定的魔王挑戰後，向老師索取你的專屬核可碼。</p>`
-              : `<div class="b-form"><button class="btn-gold" data-boss="${st.id}" data-xp="${bossXP}">${MODE === "preview" ? "預覽擊敗畫面 ✦" : "試玩擊敗魔王 ✦"}</button><span id="boss-err" class="err" hidden></span></div>
-              <p class="b-note">${MODE === "preview" ? "教師預覽：免核可碼，不會寫入試算表。" : "訪客模式免核可碼，可以先體驗擊敗魔王的感覺。正式學生需向老師索取核可碼。"}</p>`}`}
+            ${bossDone ? `<p class="b-note">你已獲得徽章與 ${bossXP} XP。</p><div class="b-form"><button class="btn-line" data-boss="${st.id}" data-practice="1">⚔️ 再戰一次（練習）</button></div>` : `
+              <div class="b-form"><button class="btn-gold btn-fight" data-boss="${st.id}" data-xp="${bossXP}">⚔️ 挑戰魔王</button></div>
+              <p class="b-note">答對題目就能攻擊魔王，連續答對 3 題會爆擊；答錯會被反擊。失去 ${QB.battle.hearts} 顆心就要重新挑戰，可以無限次挑戰。${MODE === "preview" ? "（教師預覽：不會寫入試算表）" : MODE === "guest" ? "（訪客模式：不會儲存）" : ""}</p>`}
           </div></div>`;
     }
     $("#station-content").innerHTML = `
@@ -318,30 +321,31 @@
     maybeBossBefore(C.stations.find(s => s.id === openStationId));
     if (API && isReal()) { const item = { action: "lesson", id, xp }; apiPost(item).then(r => { if (!r.ok) queue(item); }).catch(() => queue(item)); }
   }
-  async function defeatBoss(stId, xp) {
+  function defeatBoss(stId, xp, practice) {
     const st = C.stations.find(s => s.id === stId);
-    const input = $("#boss-code"), err = $("#boss-err"), btn = $("[data-boss]");
-    const code = input ? (input.value || "").trim().toUpperCase() : "";
-    const fail = (msg) => { err.textContent = msg; err.hidden = false; if (input) input.focus(); A.sfx("counter"); const bx = $(".boss"); if (bx) { bx.classList.remove("shake"); void bx.offsetWidth; bx.classList.add("shake"); } };
-    if (!isReal()) { /* 訪客／預覽：免核可碼直接體驗 */ }
-    else if (!/^[A-Z0-9]{6}$/.test(code)) return fail("核可碼是 6 個英文或數字。");
-    else if (API) {
-      btn.disabled = true; btn.textContent = "驗證中…";
-      try {
-        const r = await apiPost({ action: "boss", station: stId, code });
-        if (!r.ok) { btn.disabled = false; btn.textContent = "擊破迷思 ✦"; return fail(r.error === "bad_code" ? "核可碼不正確，再確認一次。" : "暫時連不上學院伺服器，稍後再試。"); }
-        xp = r.xp || xp;
-      } catch (e) { btn.disabled = false; btn.textContent = "擊破迷思 ✦"; return fail("暫時連不上學院伺服器，稍後再試。"); }
-    } else if (isReal() && code !== approvalCode(profile.cls, profile.seat, stId)) {
-      return fail("核可碼不正確，再確認一次。");
-    }
-    prog.bosses[stId] = true; prog.log.push({ t: Date.now(), id: "boss:" + stId, xp });
-    if (isReal()) saveProgress();
     inBattle = true;
-    battle(st, () => {
+    battle(st, won => {
+      if (!won || practice) {
+        inBattle = false; setTimeout(() => A.theme("map"), won ? 3000 : 300);
+        if (won) toast("練習戰勝利！題目越熟，下次越快破關。");
+        return;
+      }
+      prog.bosses[stId] = true; prog.log.push({ t: Date.now(), id: "boss:" + stId, xp });
+      saveProgress();
+      if (API && isReal()) reportBoss(stId, xp);
       renderStation(stId);
       playStory(storyFor(stId, "bossAfter"), st, () => { inBattle = false; gainXP(xp, `擊敗「${st.boss.name}」，獲得徽章！`); renderStation(stId); setTimeout(() => A.theme("map"), 5000); });
     });
+  }
+  /* 回報魔王勝利：新版後台用 bossWin；舊版後台改用 lesson 紀錄（id 為 boss:據點） */
+  async function reportBoss(stId, xp) {
+    const fallback = () => {
+      const items = xp > 200 ? [{ action: "lesson", id: "boss:" + stId, xp: 200 }, { action: "lesson", id: "boss:" + stId + "#2", xp: xp - 200 }]
+                             : [{ action: "lesson", id: "boss:" + stId, xp }];
+      items.forEach(it => apiPost(it).then(r => { if (!r.ok) queue(it); }).catch(() => queue(it)));
+    };
+    try { const r = await apiPost({ action: "bossWin", station: stId }); if (!r.ok) fallback(); }
+    catch (e) { fallback(); }
   }
   function gainXP(xp, why) {
     const before = levelInfo(prog.xp), bs = stageOf(before.lv);
@@ -451,56 +455,128 @@
   }
 
 
-  /* ---------- 魔王戰動畫 ---------- */
+  /* ---------- 魔王戰：答題戰鬥 ---------- */
+  const QB = window.MATHORIA_QUESTIONS || { battle: { hits: 6, finalHits: 10, hearts: 3, time: 60 } };
   let inBattle = false;
+  const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  function questionPool(st) {
+    if (!st.isFinal) return shuffle(QB[st.id] || []);
+    const mix = []; C.stations.filter(s => !s.isFinal).forEach(s => mix.push(...shuffle(QB[s.id] || []).slice(0, 2)));
+    return shuffle((QB.final || []).concat(mix));
+  }
   function battle(st, done) {
-    const ov = $("#battle"), stage = stageOf(levelInfo(prog.xp).lv).id;
+    const ov = $("#battle"), stage = stageOf(levelInfo(prog.xp).lv).id, cfg = QB.battle;
     const pet = C.pets.find(p => p.id === profile.pet) || C.pets[0];
+    const need = st.isFinal ? cfg.finalHits : cfg.hits;
+    let pool = questionPool(st), qi = 0, hits = 0, hearts = cfg.hearts, combo = 0, right = 0, asked = 0, locked = true, ended = false, timer = null, T = [];
     $("#bt-boss").src = `assets/boss/boss_${st.id}.png`; $("#bt-player").src = charImg(stage); $("#bt-pet").src = petImg(stage);
-    $("#bt-bossname").textContent = st.boss.name; $("#bt-hp").style.width = "100%"; $("#bt-hpnum").textContent = "100%";
-    $("#bt-log").textContent = ""; ov.className = "battle"; ov.hidden = false;
-    A.theme("boss");
-    const T = []; let ended = false;
+    $("#bt-bossname").textContent = st.boss.name;
     const at = (ms, fn) => T.push(setTimeout(() => { if (!ended) fn(); }, ms));
-    const log = t => { const L = $("#bt-log"); L.textContent = t; L.classList.remove("pop"); void L.offsetWidth; L.classList.add("pop"); };
-    const hp = v => { $("#bt-hp").style.width = v + "%"; $("#bt-hpnum").textContent = v + "%"; };
+    const log = t => { const L = $("#bt-log"); L.textContent = t; L.hidden = !t; L.classList.remove("pop"); void L.offsetWidth; L.classList.add("pop"); };
     const fx = c => { ov.classList.remove(c); void ov.offsetWidth; ov.classList.add(c); };
-    const dmg = (n, crit) => {
-      const d = document.createElement("span"); d.className = "bt-dmg" + (crit ? " crit" : ""); d.textContent = (crit ? "CRITICAL! " : "") + "-" + n;
-      d.style.left = (45 + Math.random() * 18) + "%"; $("#bt-field").appendChild(d); setTimeout(() => d.remove(), 1300);
-    };
-    const shot = (cls) => { const s = document.createElement("i"); s.className = "bt-shot " + cls; $("#bt-field").appendChild(s); setTimeout(() => s.remove(), 700); };
+    const hpView = () => { const v = Math.max(0, Math.round((1 - hits / need) * 100)); $("#bt-hp").style.width = v + "%"; $("#bt-hpnum").textContent = v + "%"; };
+    const heartView = () => { $("#bt-hearts").innerHTML = Array.from({ length: cfg.hearts }, (_, i) => `<i class="${i < hearts ? "" : "lost"}">♥</i>`).join(""); };
+    const comboView = () => { const c = $("#bt-combo"); c.textContent = combo >= 2 ? `${combo} COMBO${combo >= 3 ? "・爆擊！" : ""}` : ""; c.classList.toggle("hot", combo >= 3); };
+    const dmg = (txt, cls, left) => { const d = document.createElement("span"); d.className = "bt-dmg " + (cls || ""); d.textContent = txt;
+      d.style.left = (left ?? (48 + Math.random() * 16)) + "%"; $("#bt-field").appendChild(d); setTimeout(() => d.remove(), 1300); };
+    const shot = cls => { const s = document.createElement("i"); s.className = "bt-shot " + cls; $("#bt-field").appendChild(s); setTimeout(() => s.remove(), 700); };
     const spell = (st.lessons[0] && C.stats[st.lessons[0].stat]) || "智慧";
-    at(0, () => { A.sfx("boss-appear"); fx("intro"); log(`魔王「${st.boss.name}」出現了！`); });
-    at(1300, () => { ov.classList.add("heroes"); A.sfx("charge"); log(`${profile.name} 詠唱「${spell}魔法」…`); });
-    at(1850, () => { A.sfx("magic"); shot("magic"); });
-    at(2150, () => { A.sfx("hit"); A.sfx("boss-hurt"); fx("shake"); fx("bhit"); dmg(120 + Math.floor(Math.random() * 60)); hp(68); });
-    at(2700, () => { log(`${pet.name} 發動突擊！`); A.sfx("slash"); shot("slash"); });
-    at(2950, () => { A.sfx("hit"); fx("shake"); fx("bhit"); dmg(80 + Math.floor(Math.random() * 40)); hp(41); });
-    at(3500, () => { log(`看穿迷思！${profile.name} 與 ${pet.name} 合力一擊！`); A.sfx("charge"); ov.classList.add("charge"); });
-    at(4100, () => { ov.classList.remove("charge"); A.sfx("magic"); shot("final"); });
-    at(4350, () => { A.sfx("crit"); A.sfx("boss-hurt"); fx("shake-big"); fx("bhit"); dmg(999, true); hp(0); });
-    at(4900, () => { A.sfx("explode"); ov.classList.add("explode"); log(`「${st.boss.name}」的迷思被破解了！`); });
-    at(6100, () => { A.theme("victory"); A.sfx("victory"); ov.classList.add("win"); });
-    at(8600, end);
-    function end() {
-      if (ended) return; ended = true; T.forEach(clearTimeout);
-      ov.removeEventListener("click", skip); ov.hidden = true; ov.className = "battle"; $$("#bt-field .bt-dmg, #bt-field .bt-shot").forEach(x => x.remove());
-      done();
+
+    ov.className = "battle"; ov.hidden = false; $("#bt-q").hidden = true; $("#bt-ex").hidden = true; $("#bt-end").hidden = true;
+    hpView(); heartView(); comboView(); log("");
+    A.theme("boss");
+    at(0, () => { A.sfx("boss-appear"); fx("intro"); log(`魔王「${st.boss.name}」出現了！答對題目就能攻擊它！`); });
+    at(1300, () => { ov.classList.add("heroes"); });
+    at(2000, ask);
+    const onKey = e => {
+      const i = "1234".indexOf(e.key) >= 0 ? "1234".indexOf(e.key) : "abcd".indexOf(e.key.toLowerCase());
+      if (i >= 0 && !$("#bt-q").hidden) { const b = $$("#bt-opts .bt-opt")[i]; if (b && !b.disabled) b.click(); }
+      if (e.key === "Enter" && !$("#bt-ex").hidden) $("#bt-ex-go").click();
+    };
+    document.addEventListener("keydown", onKey);
+
+    function ask() {
+      if (qi >= pool.length) { pool = questionPool(st); qi = 0; }
+      const q = pool[qi++]; asked++;
+      const order = shuffle([0, 1, 2, 3]);
+      $("#bt-qnum").textContent = `第 ${asked} 題`;
+      $("#bt-qtext").textContent = q.q;
+      $("#bt-opts").innerHTML = order.map((k, i) => `<button class="bt-opt" data-k="${k}"><b>${"ABCD"[i]}</b><span>${q.o[k]}</span></button>`).join("");
+      $("#bt-q").hidden = false; $("#bt-q").classList.remove("in"); void $("#bt-q").offsetWidth; $("#bt-q").classList.add("in");
+      log(""); locked = false;
+      $$("#bt-opts .bt-opt").forEach(b => b.addEventListener("click", () => answer(q, +b.dataset.k, b)));
+      startTimer(q);
     }
-    /* 點擊：戰鬥中→快轉到勝利；勝利畫面→繼續 */
-    function skip() {
-      if (ov.classList.contains("win")) { A.sfx("confirm"); end(); return; }
-      T.forEach(clearTimeout); T.length = 0; hp(0); ov.classList.add("heroes", "explode", "win");
-      A.theme("victory"); A.sfx("victory"); log(`「${st.boss.name}」的迷思被破解了！`);
-      T.push(setTimeout(end, 2500));
+    function startTimer(q) {
+      clearInterval(timer); const bar = $("#bt-time"), total = cfg.time * 1000, t0 = Date.now(); let warned = false;
+      bar.style.width = "100%"; bar.classList.remove("low");
+      timer = setInterval(() => {
+        const left = total - (Date.now() - t0), pct = Math.max(0, left / total * 100);
+        bar.style.width = pct + "%";
+        if (left < 10000) { bar.classList.add("low"); if (!warned || Math.floor(left / 1000) !== warned) { warned = Math.floor(left / 1000); if (left > 0) A.sfx("tick"); } }
+        if (left <= 0) { clearInterval(timer); answer(q, -1, null); }
+      }, 200);
     }
-    ov.addEventListener("click", skip);
+    function answer(q, k, btn) {
+      if (locked || ended) return; locked = true; clearInterval(timer);
+      const ok = k === q.a;
+      $$("#bt-opts .bt-opt").forEach(b => { b.disabled = true; if (+b.dataset.k === q.a) b.classList.add("right"); });
+      if (btn && !ok) btn.classList.add("wrong");
+      if (ok) attack(); else counter(q, k < 0);
+    }
+    function attack() {
+      right++; combo++; const crit = combo >= 3, n = crit ? 2 : 1;
+      A.sfx("correct"); comboView();
+      at(350, () => { $("#bt-q").hidden = true; const usePet = right % 2 === 0;
+        log(crit ? `連續答對！${profile.name} 與 ${pet.name} 合力爆擊！` : usePet ? `${pet.name} 發動突擊！` : `${profile.name} 詠唱「${spell}魔法」！`);
+        if (crit) { A.sfx("charge"); ov.classList.add("charge"); } else if (usePet) A.sfx("slash"); else A.sfx("charge"); });
+      at(crit ? 950 : 800, () => { ov.classList.remove("charge"); A.sfx(crit ? "magic" : (right % 2 === 0 ? "slash" : "magic")); shot(crit ? "final" : (right % 2 === 0 ? "slash" : "magic")); });
+      at(crit ? 1200 : 1050, () => {
+        hits = Math.min(need, hits + n); hpView();
+        A.sfx(crit ? "crit" : "hit"); A.sfx("boss-hurt"); fx(crit ? "shake-big" : "shake"); fx("bhit");
+        dmg(crit ? "CRITICAL! −" + (180 + Math.floor(Math.random() * 120)) : "−" + (80 + Math.floor(Math.random() * 60)), crit ? "crit" : "");
+      });
+      at(crit ? 2100 : 1900, () => { if (hits >= need) win(); else ask(); });
+    }
+    function counter(q, timeout) {
+      combo = 0; comboView(); A.sfx("wrong");
+      at(450, () => { $("#bt-q").hidden = true; log(timeout ? `時間到！「${st.boss.name}」趁機反擊！` : `「${st.boss.name}」的迷思反擊！`); A.sfx("counter"); ov.classList.add("bossatk"); });
+      at(900, () => { ov.classList.remove("bossatk"); hearts--; heartView(); fx("hurt"); fx("shake"); A.sfx("hit"); dmg("−♥", "hurt", 18); });
+      at(1600, () => {
+        if (hearts <= 0) { lose(); return; }
+        $("#bt-ex-text").textContent = q.ex; $("#bt-ex-ans").textContent = "正確答案：" + q.o[q.a];
+        $("#bt-ex").hidden = false; A.sfx("m-think"); log("");
+      });
+    }
+    $("#bt-ex-go").onclick = e => { e.stopPropagation(); if (ended) return; $("#bt-ex").hidden = true; ask(); };
+    function win() {
+      log(`「${st.boss.name}」的迷思被破解了！`); A.sfx("explode"); ov.classList.add("explode");
+      at(1200, () => { A.theme("victory"); A.sfx("victory"); ov.classList.add("win"); log("");
+        showEnd(true, `答對 ${right} / ${asked} 題`, "繼續 ✦"); });
+    }
+    function lose() {
+      A.theme("map"); A.sfx("defeat"); ov.classList.add("lose"); log("");
+      showEnd(false, `答對 ${right} / ${asked} 題・魔王剩 ${Math.round((1 - hits / need) * 100)}% 血量`, "重新挑戰 ⚔️");
+    }
+    function showEnd(won, sub, cta) {
+      $("#bt-end").hidden = false; $("#bt-end").className = "bt-end " + (won ? "won" : "lost");
+      $("#bt-end-title").textContent = won ? "VICTORY!" : "挑戰失敗…";
+      $("#bt-end-sub").textContent = won ? sub : sub + "。看看解析，再試一次！";
+      $("#bt-end-go").textContent = cta; $("#bt-end-quit").hidden = won;
+      $("#bt-end-go").onclick = e => { e.stopPropagation(); if (won) finish(true); else { finish(null); setTimeout(() => battle(st, done), 200); } };
+      $("#bt-end-quit").onclick = e => { e.stopPropagation(); finish(false); };
+    }
+    $("#bt-quit").onclick = e => { e.stopPropagation(); if (ended) return; if ($("#bt-end").hidden && !confirm("確定要撤退嗎？這場戰鬥不會保留。")) return; finish(false); };
+    function finish(result) {
+      if (ended) return; ended = true; clearInterval(timer); T.forEach(clearTimeout); document.removeEventListener("keydown", onKey);
+      ov.hidden = true; ov.className = "battle"; $$("#bt-field .bt-dmg, #bt-field .bt-shot").forEach(x => x.remove());
+      if (result !== null) done(result);
+    }
   }
 
   /* ---------- 全域介面音效：每個按鈕都有聲音 ---------- */
   function uiSound(el) {
-    if (el.closest("#dlg") || el.closest("#battle")) return null;
+    if (el.closest("#dlg") || el.matches(".bt-opt")) return null;
     if (el.matches(".node")) return el.classList.contains("locked") ? "locked" : "node";
     if (el.matches(".scard.locked")) return "locked";
     if (el.matches("[data-close], .modal-close")) return "close";
@@ -520,7 +596,7 @@
     document.addEventListener("pointerover", e => {
       if (e.pointerType !== "mouse") return;
       const el = e.target.closest("button, a, .node, .scard"); if (!el || el.disabled || el.contains(e.relatedTarget)) return;
-      if (el.closest("#dlg") || el.closest("#battle")) return;
+      if (el.closest("#dlg")) return;
       A.sfx("hover");
     });
     document.addEventListener("pointerdown", armAudioAny, { once: true });
@@ -596,13 +672,12 @@
     document.addEventListener("click", e => {
       const stBtn = e.target.closest("[data-st]"); if (stBtn) { openStation(stBtn.dataset.st); return; }
       const d = e.target.closest("[data-done]"); if (d) { completeLesson(d.dataset.done, +d.dataset.xp, d.dataset.stat); return; }
-      const b = e.target.closest("[data-boss]"); if (b) { defeatBoss(b.dataset.boss, +b.dataset.xp); return; }
+      const b = e.target.closest("[data-boss]"); if (b) { defeatBoss(b.dataset.boss, +b.dataset.xp || 0, !!b.dataset.practice); return; }
       const rp = e.target.closest("[data-replay]"); if (rp) { const s = C.stations.find(x => x.id === rp.dataset.replay); playStory(storyFor(s.id, prog.bosses[s.id] ? "bossAfter" : "bossBefore"), s); return; }
       if (e.target.closest("[data-close]")) { const m = e.target.closest(".modal"); m.hidden = true; if (m.id === "modal-levelup") afterLevelUp(); return; }
       if (e.target.classList.contains("modal")) { e.target.hidden = true; A.sfx("close"); }
     });
     document.addEventListener("keydown", e => { if (e.key === "Escape") $$(".modal").forEach(m => m.hidden = true); });
-    document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id === "boss-code") $("[data-boss]").click(); });
     $("#btn-codex").addEventListener("click", () => { openCodex(); });
     $("#btn-stations").addEventListener("click", () => { A.sfx("open"); $("#modal-list").hidden = false; });
     $("#player-chip").addEventListener("click", () => { $("#modal-status").hidden = false; });

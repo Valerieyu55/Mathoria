@@ -123,6 +123,16 @@ function doPost(e) {
       upsertStudent(p);
       return json({ ok: true, xp: xp, duplicate: already });
     }
+    /* 答題戰鬥勝利（不需核可碼） */
+    if (body.action === 'bossWin') {
+      const st = clean(body.station, 20);
+      if (!STATIONS.some(s => s.id === st)) return json({ ok: false, error: 'bad_station' });
+      const xp = st === 'final' ? 400 : 150;
+      const already = readEvents().some(ev => ev.cls === p.cls && ev.seat === p.seat && ev.type === 'boss' && ev.id === st);
+      if (!already) sheet(SHEET_EVENTS).appendRow([new Date(), p.cls, p.seat, p.name, p.gender, p.pet, 'boss', st, xp, clean(body.ua, 60)]);
+      upsertStudent(p);
+      return json({ ok: true, xp: xp, duplicate: already });
+    }
     return json({ ok: false, error: 'bad_action' });
   } catch (err) {
     return json({ ok: false, error: String(err) });
@@ -163,7 +173,8 @@ function doGet(e) {
         const k = ev.cls + '-' + ev.seat;
         if (!map[k]) map[k] = { cls: ev.cls, seat: ev.seat, name: ev.name, xp: 0, lessons: [], bosses: [] };
         map[k].xp += ev.xp;
-        if (ev.type === 'lesson') map[k].lessons.push(ev.id);
+        if (ev.type === 'lesson' && /^boss:/.test(ev.id)) { const b = ev.id.slice(5).split('#')[0]; if (map[k].bosses.indexOf(b) < 0) map[k].bosses.push(b); }
+        else if (ev.type === 'lesson') map[k].lessons.push(ev.id);
         if (ev.type === 'boss') map[k].bosses.push(ev.id);
         if (!map[k].last || ev.t > map[k].last) map[k].last = ev.t;
       });

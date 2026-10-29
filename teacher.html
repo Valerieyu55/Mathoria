@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MATHORIA 教師後台</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700&family=Noto+Sans+TC:wght@400;500;700&family=Cinzel:wght@800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20261029h">
+<link rel="stylesheet" href="css/style.css?v=20261029i">
 <style>
   body.tpage-body{position:static;overflow:auto;background:radial-gradient(1200px 600px at 50% -10%,#2a2f6e 0%,var(--ink) 60%);min-height:100vh}
   .tbar{display:flex;align-items:center;gap:14px;padding:12px 22px;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(13,16,48,.75);backdrop-filter:blur(10px);position:sticky;top:0;z-index:20}
@@ -75,7 +75,7 @@
   <!-- 關卡預覽 -->
   <section class="tcard noprint">
     <h2>關卡預覽 <small>不需金鑰・不寫入試算表・不影響這台電腦上學生的進度</small></h2>
-    <p class="note">以學生視角瀏覽全部八個據點（包含仍在迷霧封印中的），魔王戰免核可碼。進入後下方有工具列，可隨時切換進度、角色階段、造型與寵物。</p>
+    <p class="note">以學生視角瀏覽全部八個據點（包含仍在迷霧封印中的），魔王戰可以直接體驗答題戰鬥。進入後下方有工具列，可隨時切換進度、角色階段、造型與寵物。</p>
     <div class="pv-launch">
       <a class="pv-card" href="index.html?mode=preview&state=new"><b>全新學生</b><span>剛入學，只開放第一站</span></a>
       <a class="pv-card" href="index.html?mode=preview&state=mid"><b>進行中</b><span>前兩站已破關、第三站進行中</span></a>
@@ -138,7 +138,7 @@
   </section>
 </main>
 
-<script src="js/courses.js?v=20261029h"></script>
+<script src="js/courses.js?v=20261029i"></script>
 <script>
 (function () {
   const C = window.MATHORIA_CONFIG, API = (C.apiUrl || "").trim();
@@ -177,7 +177,7 @@
       const r = await get({ action: "ping" });
       if (!r.ok) { $("#login-err").textContent = "金鑰不正確。"; key = ""; return; }
       try { sessionStorage.setItem(KEY, key); } catch (e) {}
-      $("#login-card").classList.add("hidden"); $("#dash").classList.remove("hidden"); $("#codes-card").classList.remove("hidden");
+      $("#login-card").classList.add("hidden"); $("#dash").classList.remove("hidden"); /* 魔王改為答題戰鬥，不再需要核可碼表 */
       load();
     } catch (e) { $("#login-err").textContent = "連不上 Apps Script，請確認 apiUrl 與部署權限。"; }
   }
@@ -196,6 +196,10 @@
   }
   function rows() {
     const cls = $("#cls-filter").value;
+    data.students.forEach(s => { /* 舊版後台把魔王勝利記成 lesson「boss:據點」，在這裡轉回魔王紀錄 */
+      (s.lessons || []).filter(id => /^boss:/.test(id)).forEach(id => { const b = id.slice(5).split("#")[0]; if (!s.bosses.includes(b)) s.bosses.push(b); });
+      s.lessons = (s.lessons || []).filter(id => !/^boss:/.test(id));
+    });
     return data.students.filter(s => !cls || s.cls === cls).map(s => {
       const lv = levelOf(s.xp), st = stageOf(lv);
       return Object.assign({}, s, { lv, stage: st, seatN: parseInt(s.seat, 10) });
@@ -236,7 +240,7 @@
     /* 動態 */
     const nameOf = id => { for (const st of C.stations) { const l = st.lessons.find(x => x.id === id) || (st.project && st.project.id === id ? st.project : null); if (l) return `${st.name}・${l.title}`; } return id; };
     const cls = $("#cls-filter").value;
-    $("#feed").innerHTML = data.recent.filter(e => !cls || e.cls === cls).map(e => e.type === "boss"
+    $("#feed").innerHTML = data.recent.filter(e => !cls || e.cls === cls).map(e => (/^boss:/.test(e.id) ? Object.assign({}, e, { type: "boss", id: e.id.slice(5).split("#")[0] }) : e)).filter(e => !/#/.test(e.id)).map(e => e.type === "boss"
       ? `<div class="fboss"><span>${fmt(e.t)}</span><b>${esc(e.cls)}-${esc(e.seat)} ${esc(e.name)}</b>擊敗了「${esc((C.stations.find(s => s.id === e.id) || {}).boss?.name || e.id)}」 +${e.xp} XP</div>`
       : `<div><span>${fmt(e.t)}</span><b>${esc(e.cls)}-${esc(e.seat)} ${esc(e.name)}</b>完成 ${esc(nameOf(e.id))} +${e.xp} XP</div>`).join("") || '<div>目前沒有動態。</div>';
   }

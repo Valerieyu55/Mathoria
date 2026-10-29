@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#0d1030">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700&family=Cinzel:wght@600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20261029h">
+<link rel="stylesheet" href="css/style.css?v=20261029i">
 </head>
 <body>
 
@@ -193,26 +193,44 @@
   <button class="dlg-skip" id="dlg-skip">略過對話 ▸▸</button>
 </div>
 
-<!-- ========== 魔王戰 ========== -->
+<!-- ========== 魔王戰：答題戰鬥 ========== -->
 <div class="battle" id="battle" hidden>
   <div class="bt-sky"></div>
   <div class="bt-top"><span class="bt-tag">BOSS BATTLE</span><b id="bt-bossname"></b>
     <div class="bt-hpbar"><i id="bt-hp"></i><span id="bt-hpnum">100%</span></div></div>
+  <button class="bt-quit" id="bt-quit" title="撤退">✕ 撤退</button>
   <div class="bt-field" id="bt-field">
     <img id="bt-boss" class="bt-boss" alt="">
     <div class="bt-heroes"><img id="bt-player" class="bt-player" alt=""><img id="bt-pet" class="bt-pet" alt=""></div>
   </div>
-  <p class="bt-log" id="bt-log"></p>
+  <div class="bt-status"><span class="bt-hearts" id="bt-hearts"></span><span class="bt-combo" id="bt-combo"></span></div>
+  <p class="bt-log" id="bt-log" hidden></p>
+  <div class="bt-q" id="bt-q" hidden>
+    <div class="bt-timebar"><i id="bt-time"></i></div>
+    <p class="bt-qnum" id="bt-qnum"></p>
+    <p class="bt-qtext" id="bt-qtext"></p>
+    <div class="bt-opts" id="bt-opts"></div>
+  </div>
+  <div class="bt-ex" id="bt-ex" hidden>
+    <p class="bt-ex-k">🔍 迷思破解</p>
+    <p class="bt-ex-ans" id="bt-ex-ans"></p>
+    <p class="bt-ex-text" id="bt-ex-text"></p>
+    <button class="btn-gold" id="bt-ex-go">我懂了，繼續戰鬥 ⚔️</button>
+  </div>
   <div class="bt-flash"></div>
-  <div class="bt-win"><p class="bt-victory">VICTORY!</p><p class="bt-sub">迷思已被破解・點擊繼續</p></div>
-  <p class="bt-skip">點擊畫面快轉 ▸▸</p>
+  <div class="bt-end" id="bt-end" hidden>
+    <p class="bt-victory" id="bt-end-title">VICTORY!</p>
+    <p class="bt-sub" id="bt-end-sub"></p>
+    <div class="bt-end-acts"><button class="btn-gold big" id="bt-end-go">繼續 ✦</button><button class="btn-line" id="bt-end-quit">先撤退</button></div>
+  </div>
 </div>
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="js/courses.js?v=20261029h"></script>
-<script src="js/story.js?v=20261029h"></script>
-<script src="js/audio.js?v=20261029h"></script>
-<script src="js/app.js?v=20261029h"></script>
+<script src="js/courses.js?v=20261029i"></script>
+<script src="js/story.js?v=20261029i"></script>
+<script src="js/questions.js?v=20261029i"></script>
+<script src="js/audio.js?v=20261029i"></script>
+<script src="js/app.js?v=20261029i"></script>
 </body>
 </html>
