@@ -147,6 +147,22 @@
       setTimeout(() => (guest ? $("#in-name") : $("#in-class")).focus(), 50);
     };
     $("#btn-start").addEventListener("click", () => openGate(false));
+    /* 教師登入：後端驗證密碼，通過後帶著密碼進後台（只存在這個分頁，關掉就登出） */
+    $("#btn-teacher-login").addEventListener("click", () => { $("#modal-tlogin").hidden = false; A.sfx("open"); setTimeout(() => $("#tlogin-key").focus(), 50); });
+    $("#tlogin-form").addEventListener("submit", async e => {
+      e.preventDefault();
+      const key = $("#tlogin-key").value.trim(), err = $("#tlogin-err"), btn = $("#tlogin-submit");
+      const fail = m => { err.textContent = m; err.hidden = false; A.sfx("fail"); btn.disabled = false; btn.textContent = "進入教師後台"; };
+      if (!key) return fail("請輸入教師密碼。");
+      if (!API) { location.href = "teacher.html"; return; }
+      btn.disabled = true; btn.textContent = "驗證中…"; err.hidden = true;
+      try {
+        const r = await apiGet({ action: "ping", key });
+        if (!r.ok) return fail("密碼不正確。");
+        try { sessionStorage.setItem("mathoria.teacherKey", key); } catch (e2) {}
+        location.href = "teacher.html";
+      } catch (e2) { fail("暫時連不上學院伺服器，稍後再試。"); }
+    });
     $("#btn-guest").addEventListener("click", () => openGate(true));
     $("#gate-form").addEventListener("submit", e => {
       e.preventDefault();
