@@ -305,3 +305,5 @@ body.mode-preview .toast{bottom:150px}
 .gate-teacher{position:fixed;right:18px;top:16px;z-index:40;background:rgba(10,12,36,.55);backdrop-filter:blur(6px);border:1px solid rgba(224,178,74,.6);color:var(--gold2);border-radius:999px;padding:8px 16px;font-size:13px;letter-spacing:.06em}
 .gate-teacher:hover{background:rgba(224,178,74,.18)}
 .tlogin-box{width:min(420px,100%)}
+
+.gate-credit a{color:var(--gold2);text-decoration:underline;text-underline-offset:3px}
