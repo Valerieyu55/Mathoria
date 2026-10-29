@@ -1,0 +1,410 @@
+/* MATHORIA 數域魔法學院 — 主程式（純前端，進度存於 localStorage） */
+(function () {
+  "use strict";
+  const C = window.MATHORIA_CONFIG;
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+
+  /* ---------- 儲存 ---------- */
+  const KEY_PROFILE = "mathoria.profile";
+  const keyProgress = (p) => `mathoria.progress.${p.cls}-${p.seat}`;
+  let profile = null, prog = null;
+
+  function loadProfile() { try { return JSON.parse(localStorage.getItem(KEY_PROFILE)); } catch (e) { return null; } }
+  function saveProfile() { localStorage.setItem(KEY_PROFILE, JSON.stringify(profile)); }
+  function loadProgress() {
+    try { prog = JSON.parse(localStorage.getItem(keyProgress(profile))); } catch (e) { prog = null; }
+    if (!prog) prog = { xp: 0, done: {}, bosses: {}, stats: { calc: 0, shape: 0, reason: 0, proof: 0, apply: 0 }, log: [] };
+    prog.stats = Object.assign({ calc: 0, shape: 0, reason: 0, proof: 0, apply: 0 }, prog.stats || {});
+    prog.log = prog.log || [];
+  }
+  function saveProgress() { localStorage.setItem(keyProgress(profile), JSON.stringify(prog)); }
+
+  /* ---------- 等級／階段 ---------- */
+  function levelInfo(xp) {
+    let lv = 1, rest = xp, need = C.xpForLevel(1);
+    while (rest >= need && lv < 99) { rest -= need; lv++; need = C.xpForLevel(lv); }
+    return { lv, cur: rest, need };
+  }
+  function stageOf(lv) {
+    let s = C.stages[0];
+    for (const st of C.stages) if (lv >= st.min) s = st;
+    return s;
+  }
+  function nextStage(lv) { return C.stages.find(st => st.min > lv) || null; }
+  const charImg = (stage) => `assets/char/${profile.gender}_stage_${stage}.png`;
+  const faceImg = (n = 1) => `assets/face/${profile.gender}_expression_0${n}.png`;
+  const petOf = () => C.pets.find(x => x.id === profile.pet) || C.pets[0];
+  const petImg = (stage, p = petOf()) => p.hd ? `assets/pet/${p.file}_stage_${stage}.png` : `assets/pet/${p.file}_stage_${stage}_token.png`;
+
+  /* ---------- 核可碼（與 teacher.html 相同演算法） ---------- */
+  function approvalCode(cls, seat, stationId) {
+    const str = `${C.approvalSecret}|${String(cls).trim()}|${String(parseInt(seat, 10))}|${stationId}`;
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    let h2 = 0x811c9dc5;
+    for (let i = str.length - 1; i >= 0; i--) { h2 ^= str.charCodeAt(i); h2 = Math.imul(h2, 0x01000193) >>> 0; }
+    return ((h.toString(36) + h2.toString(36)).toUpperCase().replace(/[^A-Z0-9]/g, "") + "ZZZZZZ").slice(0, 6);
+  }
+  window.MATHORIA_approvalCode = approvalCode;
+
+  /* ---------- 雲端回傳（Google Apps Script） ---------- */
+  const API = (C.apiUrl || "").trim();
+  const KEY_OUTBOX = "mathoria.outbox";
+  async function apiPost(body) {
+    const r = await fetch(API, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(Object.assign({ cls: profile.cls, seat: profile.seat, name: profile.name, gender: profile.gender, pet: profile.pet, ua: navigator.userAgent.slice(0, 60) }, body)) });
+    return r.json();
+  }
+  async function apiGet(params) {
+    const r = await fetch(API + "?" + new URLSearchParams(params).toString());
+    return r.json();
+  }
+  function outbox() { try { return JSON.parse(localStorage.getItem(KEY_OUTBOX)) || []; } catch (e) { return []; } }
+  function queue(item) { const q = outbox(); q.push(item); localStorage.setItem(KEY_OUTBOX, JSON.stringify(q)); }
+  async function flushOutbox() {
+    if (!API) return; const q = outbox(); if (!q.length) return;
+    const left = [];
+    for (const it of q) { try { const r = await apiPost(it); if (!r.ok && r.error !== "bad_student") left.push(it); } catch (e) { left.push(it); } }
+    localStorage.setItem(KEY_OUTBOX, JSON.stringify(left));
+  }
+  function lessonById(id) {
+    for (const s of C.stations) { const l = s.lessons.find(x => x.id === id) || (s.project && s.project.id === id ? s.project : null); if (l) return l; }
+    return null;
+  }
+  /* 從雲端合併進度：雲端有、本機沒有的事件補進來（換裝置時就是整個還原） */
+  async function syncFromCloud() {
+    if (!API) return;
+    try {
+      const r = await apiGet({ action: "progress", cls: profile.cls, seat: profile.seat });
+      if (!r.ok) return;
+      let added = 0;
+      r.events.forEach(ev => {
+        if (ev.type === "lesson" && !prog.done[ev.id]) {
+          prog.done[ev.id] = true; prog.xp += ev.xp; added++;
+          const l = lessonById(ev.id); if (l && prog.stats[l.stat] !== undefined) prog.stats[l.stat] += 1;
+        }
+        if (ev.type === "boss" && !prog.bosses[ev.id]) { prog.bosses[ev.id] = true; prog.xp += ev.xp; added++; }
+      });
+      if (added) { saveProgress(); renderAll(); toast(`已從雲端還原 ${added} 筆進度`); }
+    } catch (e) { /* 離線時略過 */ }
+  }
+
+  /* ---------- 據點狀態 ---------- */
+  function stationProgress(st) {
+    const total = st.lessons.length + (st.project ? 1 : 0) + 1;
+    let done = st.lessons.filter(l => prog.done[l.id]).length;
+    if (st.project && prog.done[st.project.id]) done++;
+    if (prog.bosses[st.id]) done++;
+    return { done, total, pct: Math.round(done / total * 100) };
+  }
+  function isOpen(st) {
+    if (st.sealed) return false;
+    if (st.isFinal) return C.stations.filter(s => !s.sealed && !s.isFinal).every(s => prog.bosses[s.id]);
+    const active = C.stations.filter(s => !s.sealed && !s.isFinal);
+    const i = active.indexOf(st);
+    if (i <= 0) return true;
+    const prev = active[i - 1];
+    return prev.lessons.some(l => prog.done[l.id]) || !!prog.bosses[prev.id];
+  }
+  function stateOf(st) {
+    if (prog.bosses[st.id]) return "cleared";
+    return isOpen(st) ? "open" : "locked";
+  }
+  function currentStation() {
+    return C.stations.find(st => stateOf(st) === "open") || null;
+  }
+
+  /* ---------- 入口畫面 ---------- */
+  function initGate() {
+    const petRow = $("#pick-pet");
+    petRow.innerHTML = C.pets.map((p, i) => `
+      <button type="button" class="pick ${i === 0 ? "is-on" : ""}" data-v="${p.id}">
+        <img class="${p.hd ? "pet-hd" : "pet-token"}" src="${petImg(1, p)}" alt=""><span>${p.name}</span><small>${p.trait}</small>
+      </button>`).join("");
+    $$(".pick-row").forEach(row => row.addEventListener("click", e => {
+      const b = e.target.closest(".pick"); if (!b) return;
+      $$(".pick", row).forEach(x => x.classList.remove("is-on")); b.classList.add("is-on");
+      if (row.id === "pick-gender") $$("#pick-pet img").forEach(img => { /* 寵物圖不分性別 */ });
+    }));
+    const saved = loadProfile();
+    if (saved) { $("#in-class").value = saved.cls; $("#in-seat").value = saved.seat; $("#in-name").value = saved.name; }
+    $("#btn-start").addEventListener("click", () => { $("#modal-gate").hidden = false; A.sfx("open"); setTimeout(() => $("#in-class").focus(), 50); });
+    $("#gate-form").addEventListener("submit", e => {
+      e.preventDefault();
+      const cls = $("#in-class").value.trim(), seat = $("#in-seat").value.trim(), name = $("#in-name").value.trim();
+      const err = $("#gate-err");
+      if (!cls || !seat || !name) { err.textContent = "請填寫班級、座號與暱稱。"; err.hidden = false; return; }
+      if (!/^\d{1,3}$/.test(seat)) { err.textContent = "座號請填數字。"; err.hidden = false; return; }
+      err.hidden = true;
+      profile = { cls, seat: String(parseInt(seat, 10)), name,
+        gender: $("#pick-gender .is-on").dataset.v, pet: $("#pick-pet .is-on").dataset.v, created: Date.now() };
+      saveProfile(); $("#modal-gate").hidden = true; enterHub(); armAudio();
+    });
+  }
+
+  /* ---------- 主城 ---------- */
+  function enterHub() {
+    loadProgress();
+    $("#screen-gate").hidden = true; $("#screen-hub").hidden = false;
+    renderAll();
+    pan = { x: 0, y: 0 }; layoutStage();
+    const cur = currentStation(); if (cur) centerOn(cur);
+    updateSoundBtn();
+    if (API) { apiPost({ action: "login" }).catch(() => {}); flushOutbox().then(syncFromCloud); }
+  }
+  function renderAll() { renderHUD(); renderMap(); renderList(); renderQuest(); }
+
+  function renderHUD() {
+    const li = levelInfo(prog.xp), st = stageOf(li.lv), nx = nextStage(li.lv);
+    $("#chip-face").src = faceImg(1); $("#chip-name").textContent = profile.name;
+    $("#chip-title").textContent = `${profile.cls} 班 ${profile.seat} 號 ・ ${st.name}`; $("#chip-lv").textContent = `Lv.${li.lv}`;
+    $("#hud-name").textContent = profile.name; $("#hud-lv").textContent = `Lv.${li.lv}`;
+    $("#hud-title").textContent = st.name; $("#hud-title-en").textContent = st.en;
+    $("#char-img").src = charImg(st.id); $("#pet-img").src = petImg(st.id); $("#pet-img").classList.toggle("token", !petOf().hd);
+    $("#status-img").src = charImg(st.id); $("#status-pet").src = petImg(st.id); $("#status-pet").classList.toggle("token", !petOf().hd);
+    $("#char-aura").className = `char-aura s${st.id}`;
+    $("#xp-mini-fill").style.width = `${Math.round(li.cur / li.need * 100)}%`;
+    $("#xp-fill").style.width = `${Math.round(li.cur / li.need * 100)}%`;
+    $("#xp-text").textContent = `${li.cur} / ${li.need} XP`;
+    $("#hud-next").textContent = nx ? `再 ${nx.min - li.lv} 級進化為「${nx.name}」` : "已達最終型態，守護數域世界！";
+    /* 能力 */
+    const colors = { calc: "#8fd0ff", shape: "#ffd166", reason: "#f4a3c8", proof: "#a79bf0", apply: "#5fd3a8" };
+    const max = Math.max(5, ...Object.values(prog.stats));
+    $("#stats").innerHTML = Object.entries(C.stats).map(([k, n]) =>
+      `<div class="stat"><span>${n}</span><div class="bar"><i style="width:${Math.round(prog.stats[k] / max * 100)}%;background:${colors[k]}"></i></div><b>${prog.stats[k]}</b></div>`).join("");
+    /* 徽章 */
+    const got = C.stations.filter(s => prog.bosses[s.id]).length;
+    $("#badge-count").textContent = `${got} / ${C.stations.length}`;
+    $("#badges").innerHTML = C.stations.map(s =>
+      `<div class="badge ${prog.bosses[s.id] ? "on" : ""}" title="${s.name}"><img src="assets/badge/${s.badge}" alt=""><span>${s.isFinal ? "守護者之章" : s.name.slice(0, 2) + "之章"}</span></div>`).join("");
+  }
+
+  function renderMap() {
+    const cur = currentStation();
+    $("#stage-fog").innerHTML = C.stations.filter(s => stateOf(s) === "locked").map(s => {
+      const q = s.pos; return `<span class="fog" style="left:${q.x}%;top:${q.y}%;width:${q.fogW}%;height:${q.fogH}%"></span>`;
+    }).join("");
+    $("#map-nodes").innerHTML = C.stations.map(s => {
+      const state = stateOf(s), q = s.pos, p = stationProgress(s);
+      const medal = state === "cleared" ? `<img src="assets/badge/${s.badge}" alt="">` : (state === "locked" ? "🔒" : s.num);
+      const sub = state === "locked" ? (s.sealed ? "迷霧封印" : "尚未開放") : (state === "cleared" ? "魔王已擊敗" : `${p.done}/${p.total}`);
+      return `<button class="node ${state} ${s.isFinal ? "final" : ""} ${cur && cur.id === s.id ? "current" : ""}" style="left:${q.x}%;top:${q.y}%" data-st="${s.id}" title="${s.name}">
+        <span class="node-ring"></span><span class="node-medal">${medal}</span>
+        <span class="node-label"><b>${s.name}</b><small>${sub}</small></span>
+        ${cur && cur.id === s.id ? `<span class="node-now">目前任務</span>` : ""}</button>`;
+    }).join("");
+  }
+
+  function renderList() {
+    $("#station-list").innerHTML = C.stations.map(s => {
+      const state = stateOf(s), p = stationProgress(s);
+      return `<button class="scard ${state}" data-st="${s.id}">
+        <span class="m">${state === "cleared" ? "✓" : s.num}</span>
+        <span><b>${s.name}</b><small>${s.term}・${s.chapter}${s.sealed ? "・迷霧封印" : ""}</small>
+        <span class="prog"><i style="width:${p.pct}%"></i></span></span></button>`;
+    }).join("");
+  }
+
+  function renderQuest() {
+    const box = $("#quest-now"), st = currentStation();
+    if (!st) {
+      const all = C.stations.every(s => s.sealed || prog.bosses[s.id]);
+      box.innerHTML = all ? `<span class="q-k">任務</span><b>你已成為數域守護者！</b><span>Find the value of you — x = 你。</span>`
+        : `<span class="q-k">任務</span><b>等待新的據點開放</b><span>老師解除迷霧封印後，新的冒險就會出現在地圖上。</span>`;
+      return;
+    }
+    const lesson = st.lessons.find(l => !prog.done[l.id]);
+    const text = lesson ? `前往 ${lesson.title}` : (st.project && !prog.done[st.project.id] ? `完成專題：${st.project.title}` : `挑戰魔王「${st.boss.name}」`);
+    box.innerHTML = `<span class="q-k">目前任務</span><b>${st.num}・${st.name}</b><span>${text}</span><button class="btn-gold" data-st="${st.id}">前往 ✦</button>`;
+  }
+
+  /* ---------- 據點面板 ---------- */
+  let openStationId = null;
+  function openStation(id) {
+    const st = C.stations.find(s => s.id === id); if (!st) return;
+    openStationId = id;
+    const state = stateOf(st), p = stationProgress(st);
+    const stat = k => C.stats[k] || "";
+    const lessonHTML = (l, kind) => {
+      const done = !!prog.done[l.id];
+      const xp = kind === "project" ? C.xp.project : C.xp.lesson;
+      const link = l.url ? `<a class="btn-line" href="${l.url}" target="_blank" rel="noopener">前往探索 ↗</a>` : "";
+      const act = done ? `<span class="done-mark">✓ 已完成 +${xp} XP</span>` : `<button class="btn-gold" data-done="${l.id}" data-xp="${xp}" data-stat="${l.stat}">回報完成</button>`;
+      return `<div class="lesson ${done ? "done" : ""}"><div><b>${l.title}<span class="tag">${stat(l.stat)}</span></b><p>${l.task}${l.urlLabel ? `　｜ 課程：${l.urlLabel}` : ""}</p></div><div class="acts">${link}${act}</div></div>`;
+    };
+    let body = "";
+    if (state === "locked") {
+      body = st.sealed
+        ? `<div class="st-sealed">🌫️ 這座據點仍被迷霧封印。老師在課堂上開放後，就能進入探索。<br><small>本章內容：${st.lessons.map(l => l.title).join("、")}</small></div>`
+        : (st.isFinal ? `<div class="st-sealed">⛩️ 金色之門緊閉。集齊其他據點的徽章後，才能進入終焉試煉之地。</div>`
+          : `<div class="st-sealed">🔒 先在前一個據點完成至少一個任務，這裡的道路就會打開。</div>`);
+    } else {
+      const bossDone = !!prog.bosses[st.id];
+      const bossXP = st.isFinal ? C.xp.finalBoss : C.xp.boss;
+      body = `
+        <div class="st-section"><h3>探索任務</h3>${st.lessons.map(l => lessonHTML(l, "lesson")).join("")}</div>
+        ${st.project ? `<div class="st-section"><h3>專題任務</h3>${lessonHTML(st.project, "project")}</div>` : ""}
+        <div class="st-section"><h3>魔王戰</h3>
+          <div class="boss ${bossDone ? "defeated" : ""}">
+            <img class="b-art" src="assets/boss/boss_${st.id}.png" alt="${st.boss.name}" onerror="this.remove()">
+            <p class="b-name">${bossDone ? "✦ 已擊敗：" : "👾 "}${st.boss.name}</p>
+            <p class="b-myth"><b>它的迷思：</b>${st.boss.myth}</p>
+            <p class="b-hint">破解之道：${st.boss.hint}</p>
+            ${bossDone ? `<p class="b-note">你已獲得徽章與 ${bossXP} XP。</p>` : `
+              <div class="b-form"><input id="boss-code" placeholder="核可碼" maxlength="6"><button class="btn-gold" data-boss="${st.id}" data-xp="${bossXP}">擊破迷思 ✦</button><span id="boss-err" class="err" hidden></span></div>
+              <p class="b-note">完成本章段考或老師指定的魔王挑戰後，向老師索取你的專屬核可碼。</p>`}
+          </div></div>`;
+    }
+    $("#station-content").innerHTML = `
+      <div class="st-head"><img src="assets/badge/${st.badge}" alt="" style="${state === "cleared" ? "" : "filter:grayscale(1) brightness(.6)"}">
+        <div><p class="k">${st.term}・${st.chapter}・進度 ${p.done}/${p.total}</p><h2>${st.num}・${st.name}<small>${st.en}</small></h2></div></div>
+      <p class="st-intro">${st.intro}</p>${body}`;
+    $("#modal-station").hidden = false;
+    A.sfx("open");
+  }
+
+  function completeLesson(id, xp, stat) {
+    if (prog.done[id]) return;
+    if (!confirm("確定你已經完成這個任務了嗎？\n誠實回報，才是真正的守護者精神。")) return;
+    prog.done[id] = true; prog.log.push({ t: Date.now(), id, xp });
+    if (stat && prog.stats[stat] !== undefined) prog.stats[stat] += 1;
+    gainXP(xp, "任務完成");
+    openStation(openStationId);
+    if (API) { const item = { action: "lesson", id, xp }; apiPost(item).then(r => { if (!r.ok) queue(item); }).catch(() => queue(item)); }
+  }
+  async function defeatBoss(stId, xp) {
+    const st = C.stations.find(s => s.id === stId);
+    const input = $("#boss-code"), err = $("#boss-err"), btn = $("[data-boss]");
+    const code = (input.value || "").trim().toUpperCase();
+    const fail = (msg) => { err.textContent = msg; err.hidden = false; input.focus(); A.sfx("fail"); };
+    if (!/^[A-Z0-9]{6}$/.test(code)) return fail("核可碼是 6 個英文或數字。");
+    if (API) {
+      btn.disabled = true; btn.textContent = "驗證中…";
+      try {
+        const r = await apiPost({ action: "boss", station: stId, code });
+        if (!r.ok) { btn.disabled = false; btn.textContent = "擊破迷思 ✦"; return fail(r.error === "bad_code" ? "核可碼不正確，再確認一次。" : "暫時連不上學院伺服器，稍後再試。"); }
+        xp = r.xp || xp;
+      } catch (e) { btn.disabled = false; btn.textContent = "擊破迷思 ✦"; return fail("暫時連不上學院伺服器，稍後再試。"); }
+    } else if (code !== approvalCode(profile.cls, profile.seat, stId)) {
+      return fail("核可碼不正確，再確認一次。");
+    }
+    prog.bosses[stId] = true; prog.log.push({ t: Date.now(), id: "boss:" + stId, xp });
+    A.sfx("boss");
+    gainXP(xp, `擊敗「${st.boss.name}」，獲得徽章！`);
+    openStation(stId);
+  }
+  function gainXP(xp, why) {
+    const before = levelInfo(prog.xp), bs = stageOf(before.lv);
+    prog.xp += xp; saveProgress();
+    const after = levelInfo(prog.xp), as = stageOf(after.lv);
+    renderAll();
+    toast(`+${xp} XP　${why}`);
+    if (as.id !== bs.id) { A.sfx("evolve"); showLevelUp(true, after.lv, as); }
+    else if (after.lv !== before.lv) { A.sfx("levelup"); showLevelUp(false, after.lv, as); }
+    else A.sfx("xp");
+  }
+  function showLevelUp(evolved, lv, st) {
+    $("#levelup-kicker").textContent = evolved ? "EVOLUTION!" : "LEVEL UP!";
+    $("#levelup-img").src = charImg(st.id);
+    $("#levelup-title").textContent = evolved ? `進化為「${st.name}」！` : `Lv.${lv}`;
+    $("#levelup-desc").textContent = evolved ? st.desc : `${st.name}，距離下一次進化更近了。`;
+    $("#chip-face").src = faceImg(2);
+    setTimeout(() => { $("#modal-levelup").hidden = false; }, 350);
+  }
+
+  /* ---------- 圖鑑 ---------- */
+  function openCodex() {
+    const lv = levelInfo(prog.xp).lv, now = stageOf(lv);
+    $("#codex-stages").innerHTML = C.stages.map(s => `
+      <div class="cstage ${s.id > now.id ? "locked" : ""} ${s.id === now.id ? "now" : ""}">
+        <img src="${charImg(s.id)}" alt=""><b>Lv.${s.min}${s.id === 4 ? "+" : "–" + (C.stages[s.id] ? C.stages[s.id].min - 1 : "")} ${s.name}</b><small>${s.en}</small><p>${s.desc}</p></div>`).join("");
+    const pet = C.pets.find(p => p.id === profile.pet);
+    const names = ["幼年期", "成長期", "進化期", "完全體"];
+    $("#codex-pets").innerHTML = [1, 2, 3, 4].map(i => `<div class="cpet ${i > now.id ? "locked" : ""}"><img class="${pet.hd ? "pet-hd" : "pet-token"}" src="${petImg(i)}" alt=""><div>${pet.name}・${names[i - 1]}</div></div>`).join("");
+    $("#modal-codex").hidden = false;
+  }
+
+  /* ---------- 其他 ---------- */
+  let toastTimer;
+  function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 2600); }
+
+  /* ---------- 全畫面地圖：縮放至填滿視窗 + 拖曳平移 ---------- */
+  const MAP_W = 1672, MAP_H = 940;
+  let pan = { x: 0, y: 0 }, stageW = 0, stageH = 0, dragging = false, moved = false, start = null;
+  function layoutStage() {
+    const vp = $("#viewport"), vw = vp.clientWidth, vh = vp.clientHeight;
+    const scale = Math.max(vw / MAP_W, vh / MAP_H);
+    stageW = MAP_W * scale; stageH = MAP_H * scale;
+    const st = $("#stage"); st.style.width = stageW + "px"; st.style.height = stageH + "px";
+    pan.x = Math.min(0, Math.max(vw - stageW, pan.x || (vw - stageW) / 2));
+    pan.y = Math.min(0, Math.max(vh - stageH, pan.y || (vh - stageH) / 2));
+    applyPan();
+  }
+  function applyPan() {
+    $("#stage").style.transform = `translate(${pan.x}px, ${pan.y}px)`;
+    requestAnimationFrame(dodgeLogo);
+  }
+  /* LOGO 不可遮住據點：有熱點進到 LOGO 範圍時，LOGO 自動淡出讓位 */
+  function dodgeLogo() {
+    const logo = $("#btn-home"); if (!logo) return;
+    const L = logo.getBoundingClientRect();
+    const hit = $$("#map-nodes .node").some(n => { const r = n.getBoundingClientRect(); return r.right > L.left && r.left < L.right && r.bottom > L.top && r.top < L.bottom; });
+    logo.classList.toggle("dodge", hit);
+  }
+  function clampPan() { const vp = $("#viewport"); pan.x = Math.min(0, Math.max(vp.clientWidth - stageW, pan.x)); pan.y = Math.min(0, Math.max(vp.clientHeight - stageH, pan.y)); }
+  function centerOn(st) { /* 把目前任務的據點移到畫面中央 */
+    const vp = $("#viewport"), q = st.pos;
+    pan.x = vp.clientWidth / 2 - q.x / 100 * stageW; pan.y = vp.clientHeight * 0.56 - q.y / 100 * stageH;
+    clampPan(); applyPan();
+  }
+  function bindStage() {
+    const vp = $("#viewport");
+    vp.addEventListener("pointerdown", e => { if (e.button !== 0) return; dragging = true; moved = false; start = { x: e.clientX - pan.x, y: e.clientY - pan.y }; });
+    window.addEventListener("pointermove", e => { if (!dragging) return; const nx = e.clientX - start.x, ny = e.clientY - start.y; if (Math.abs(nx - pan.x) + Math.abs(ny - pan.y) > 3) moved = true; pan.x = nx; pan.y = ny; clampPan(); applyPan(); });
+    const up = () => { dragging = false; };
+    window.addEventListener("pointerup", up); window.addEventListener("pointercancel", up);
+    vp.addEventListener("click", e => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
+    window.addEventListener("resize", layoutStage);
+    new MutationObserver(() => requestAnimationFrame(dodgeLogo)).observe($("#map-nodes"), { childList: true });
+  }
+
+  /* ---------- 音樂 ---------- */
+  const A = window.MATHORIA_AUDIO;
+  function updateSoundBtn() { $("#btn-sound").textContent = A.isOn() ? "🔊" : "🔇"; $("#btn-sound").classList.toggle("off", !A.isOn()); }
+  let audioArmed = false;
+  function armAudio() { /* 瀏覽器需要使用者互動後才能播放 */
+    if (audioArmed) return; audioArmed = true;
+    if (A.wantsOn()) A.start(); updateSoundBtn();
+  }
+
+  function bind() {
+    document.addEventListener("click", e => {
+      const stBtn = e.target.closest("[data-st]"); if (stBtn) { openStation(stBtn.dataset.st); return; }
+      const d = e.target.closest("[data-done]"); if (d) { completeLesson(d.dataset.done, +d.dataset.xp, d.dataset.stat); return; }
+      const b = e.target.closest("[data-boss]"); if (b) { defeatBoss(b.dataset.boss, +b.dataset.xp); return; }
+      if (e.target.closest("[data-close]")) { e.target.closest(".modal").hidden = true; A.sfx("click"); return; }
+      if (e.target.classList.contains("modal")) { e.target.hidden = true; }
+    });
+    document.addEventListener("keydown", e => { if (e.key === "Escape") $$(".modal").forEach(m => m.hidden = true); });
+    document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id === "boss-code") $("[data-boss]").click(); });
+    $("#btn-codex").addEventListener("click", () => { A.sfx("click"); openCodex(); });
+    $("#btn-stations").addEventListener("click", () => { A.sfx("click"); $("#modal-list").hidden = false; });
+    $("#player-chip").addEventListener("click", () => { A.sfx("click"); $("#modal-status").hidden = false; });
+    $("#ui-char").addEventListener("click", () => { A.sfx("click"); $("#modal-status").hidden = false; });
+    $("#btn-teacher").addEventListener("click", () => location.href = "teacher.html");
+    $("#btn-home").addEventListener("click", () => { $("#screen-hub").hidden = true; $("#screen-gate").hidden = false; });
+    $("#btn-logout").addEventListener("click", () => { $("#screen-hub").hidden = true; $("#screen-gate").hidden = false; });
+    $("#btn-sound").addEventListener("click", () => { audioArmed = true; A.toggle(); updateSoundBtn(); });
+    $("#btn-fullmap").addEventListener("click", () => { if (document.fullscreenElement) document.exitFullscreen(); else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen(); });
+    document.addEventListener("fullscreenchange", () => setTimeout(layoutStage, 50));
+    $("#screen-hub").addEventListener("pointerdown", armAudio, { once: false });
+    setTimeout(() => { const h = $("#ui-hint"); if (h) h.classList.add("fade"); }, 6000);
+    bindStage();
+  }
+
+  /* ---------- 啟動 ---------- */
+  initGate(); bind();
+  const saved = loadProfile();
+  if (saved && saved.cls && saved.seat && saved.name) { profile = saved; enterHub(); }
+})();

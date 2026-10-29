@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MATHORIA 教師後台</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700&family=Noto+Sans+TC:wght@400;500;700&family=Cinzel:wght@800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  body.tpage-body{position:static;overflow:auto;background:radial-gradient(1200px 600px at 50% -10%,#2a2f6e 0%,var(--ink) 60%);min-height:100vh}
+  .tbar{display:flex;align-items:center;gap:14px;padding:12px 22px;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(13,16,48,.75);backdrop-filter:blur(10px);position:sticky;top:0;z-index:20}
+  .tbar img{height:46px}
+  .tbar .sp{flex:1}
+  .tbar a,.tbar button{text-decoration:none}
+  .tpage{max-width:1280px;margin:0 auto;padding:22px 20px 60px}
+  .tcard{background:rgba(255,255,255,.05);border:1px solid rgba(224,178,74,.35);border-radius:20px;padding:18px 20px;margin-bottom:18px}
+  .tcard h2{font-family:var(--serif);color:var(--gold2);font-size:18px;margin:0 0 10px;display:flex;align-items:center;gap:10px}
+  .tcard h2 small{font-family:var(--sans);font-size:12px;color:var(--muted);font-weight:400}
+  .tform{display:flex;flex-wrap:wrap;gap:12px;align-items:end}
+  .tform label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+  .tform input,.tform select{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:9px 12px;color:#fff;font-size:15px;min-width:120px}
+  .tform select option{color:#000}
+  .note{font-size:13px;color:var(--muted);margin:6px 0 0}
+  .note code{background:rgba(255,255,255,.1);padding:1px 6px;border-radius:6px;color:#fff}
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+  .metric{background:rgba(255,255,255,.05);border-radius:14px;padding:12px 14px}
+  .metric span{display:block;font-size:12px;color:var(--muted)}
+  .metric b{display:block;font-size:26px;font-weight:700;color:#fff;margin-top:2px}
+  .metric small{font-size:12px;color:var(--gold2)}
+  .tbl-wrap{overflow:auto;border-radius:12px;border:1px solid rgba(255,255,255,.1)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{border-bottom:1px solid rgba(255,255,255,.08);padding:8px 8px;text-align:center;white-space:nowrap}
+  th{color:var(--gold2);font-weight:600;font-size:12px;background:rgba(13,16,48,.6);position:sticky;top:0;cursor:pointer;user-select:none}
+  th.st{cursor:default;max-width:62px;white-space:normal;line-height:1.25}
+  td.l{text-align:left}
+  td.code{font-family:ui-monospace,Menlo,monospace;letter-spacing:.15em;font-weight:700}
+  tr:hover td{background:rgba(255,255,255,.04)}
+  .dot{display:inline-block;width:20px;height:20px;border-radius:50%;line-height:20px;font-size:11px;font-weight:700}
+  .d0{background:rgba(255,255,255,.08);color:#777}
+  .d1{background:rgba(143,208,255,.25);color:#cfe9ff}
+  .d2{background:var(--gold);color:#3b2a08}
+  .lvtag{font-size:11px;padding:1px 8px;border-radius:999px;background:rgba(167,155,240,.2);color:var(--lav2)}
+  .lvtag.s4{background:var(--gold);color:#3b2a08}
+  .bar{height:6px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden;width:90px;display:inline-block;vertical-align:middle;margin-left:6px}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,#7c6cf0,#fff)}
+  .feed{display:grid;gap:6px;font-size:13px;max-height:280px;overflow:auto}
+  .feed div{display:flex;gap:10px;color:var(--muted)}
+  .feed b{color:#fff;font-weight:500}
+  .feed .fboss{color:var(--gold2)}
+  .ok{color:var(--ok)}
+  .hidden{display:none!important}
+  .legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin:8px 0 0}
+  @media print{body{background:#fff;color:#000}.tbar,.noprint{display:none}.tcard{border-color:#999}th{color:#000;background:#eee}}
+</style>
+</head>
+<body class="tpage-body">
+<header class="tbar">
+  <img src="assets/bg/logo.png" alt="MATHORIA">
+  <b style="font-family:var(--serif);letter-spacing:.2em;color:var(--gold2)">教師後台</b>
+  <span class="sp"></span>
+  <span id="mode" class="note"></span>
+  <a class="btn-ghost" href="index.html">← 回到主城</a>
+</header>
+
+<main class="tpage">
+
+  <!-- 登入 -->
+  <section class="tcard" id="login-card">
+    <h2>教師登入</h2>
+    <form id="login" class="tform">
+      <label>教師金鑰<input id="key" type="password" placeholder="TEACHER_KEY" required></label>
+      <button class="btn-gold" type="submit">進入後台</button>
+      <span id="login-err" class="err"></span>
+    </form>
+    <p class="note" id="login-note"></p>
+  </section>
+
+  <!-- 儀表板（雲端模式） -->
+  <section id="dash" class="hidden">
+    <div class="tcard">
+      <h2>全班進度 <small id="updated"></small></h2>
+      <div class="tform noprint" style="margin-bottom:14px">
+        <label>班級<select id="cls-filter"><option value="">全部班級</option></select></label>
+        <button class="btn-ghost" id="refresh" type="button">重新整理</button>
+        <button class="btn-ghost" id="export" type="button">匯出 CSV</button>
+      </div>
+      <div class="metrics" id="metrics"></div>
+    </div>
+
+    <div class="tcard">
+      <h2>學生明細 <small>點欄位標題可排序</small></h2>
+      <div class="tbl-wrap"><table id="roster"></table></div>
+      <div class="legend"><span><i class="dot d0">·</i> 未開始</span><span><i class="dot d1">●</i> 有完成任務</span><span><i class="dot d2">✓</i> 已擊敗魔王</span></div>
+    </div>
+
+    <div class="tcard">
+      <h2>最新動態</h2>
+      <div class="feed" id="feed"></div>
+    </div>
+  </section>
+
+  <!-- 核可碼 -->
+  <section class="tcard" id="codes-card">
+    <h2>魔王核可碼表</h2>
+    <p class="note">學生完成本章魔王挑戰（段考、小考或你指定的任務）後，把對應的 6 碼交給他，他在據點面板輸入即可擊敗魔王、獲得徽章。</p>
+    <form id="codes-form" class="tform noprint" style="margin-top:12px">
+      <label id="secret-wrap">核可碼密語<input id="secret" type="password" placeholder="approvalSecret"></label>
+      <label>班級<input id="code-cls" type="text" placeholder="901" required></label>
+      <label>座號起<input id="from" type="number" value="1" min="1" max="99" style="min-width:80px"></label>
+      <label>座號迄<input id="to" type="number" value="35" min="1" max="99" style="min-width:80px"></label>
+      <button class="btn-gold" type="submit">產生核可碼表</button>
+    </form>
+    <div id="codes-out"></div>
+  </section>
+
+  <section class="tcard noprint">
+    <h2>課程設定</h2>
+    <p class="note">開放迷霧封印：在 <code>js/courses.js</code> 把該據點的 <code>sealed: true</code> 改成 <code>false</code>。掛新課程網頁：在該單元填 <code>url</code> 與 <code>urlLabel</code>。XP 在同一檔的 <code>xp</code> 區塊。</p>
+  </section>
+</main>
+
+<script src="js/courses.js"></script>
+<script>
+(function () {
+  const C = window.MATHORIA_CONFIG, API = (C.apiUrl || "").trim();
+  const $ = s => document.querySelector(s);
+  const KEY = "mathoria.teacherKey";
+  let key = "", data = null, sortKey = "seat", sortDir = 1;
+
+  /* 等級計算（與學生端相同） */
+  function levelOf(xp) { let lv = 1, rest = xp, need = C.xpForLevel(1); while (rest >= need && lv < 99) { rest -= need; lv++; need = C.xpForLevel(lv); } return lv; }
+  function stageOf(lv) { let s = C.stages[0]; C.stages.forEach(st => { if (lv >= st.min) s = st; }); return s; }
+  const fmt = t => { if (!t) return "—"; const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  async function get(params) { const r = await fetch(API + "?" + new URLSearchParams(Object.assign({ key }, params))); return r.json(); }
+
+  /* ---------- 模式 ---------- */
+  if (!API) {
+    $("#mode").textContent = "離線模式（尚未設定 apiUrl）";
+    $("#login-card").classList.add("hidden");
+  } else {
+    $("#mode").innerHTML = '<span class="ok">● 已連線 Google 試算表</span>';
+    $("#secret-wrap").classList.add("hidden");
+    $("#login-note").innerHTML = "金鑰是 Apps Script「指令碼屬性」裡的 <code>TEACHER_KEY</code>。";
+    $("#codes-card").classList.add("hidden");
+    try { key = sessionStorage.getItem(KEY) || ""; } catch (e) {}
+    if (key) enter();
+  }
+
+  $("#login").addEventListener("submit", async e => {
+    e.preventDefault(); key = $("#key").value.trim(); $("#login-err").textContent = "";
+    enter();
+  });
+
+  async function enter() {
+    try {
+      const r = await get({ action: "ping" });
+      if (!r.ok) { $("#login-err").textContent = "金鑰不正確。"; key = ""; return; }
+      try { sessionStorage.setItem(KEY, key); } catch (e) {}
+      $("#login-card").classList.add("hidden"); $("#dash").classList.remove("hidden"); $("#codes-card").classList.remove("hidden");
+      load();
+    } catch (e) { $("#login-err").textContent = "連不上 Apps Script，請確認 apiUrl 與部署權限。"; }
+  }
+
+  /* ---------- 儀表板 ---------- */
+  async function load() {
+    $("#updated").textContent = "讀取中…";
+    const r = await get({ action: "dashboard" });
+    if (!r.ok) { $("#updated").textContent = "讀取失敗：" + r.error; return; }
+    data = r;
+    const classes = [...new Set(r.students.map(s => s.cls))].sort();
+    const sel = $("#cls-filter"), cur = sel.value;
+    sel.innerHTML = '<option value="">全部班級</option>' + classes.map(c => `<option ${c === cur ? "selected" : ""}>${esc(c)}</option>`).join("");
+    render();
+    $("#updated").textContent = "更新於 " + fmt(Date.now());
+  }
+  function rows() {
+    const cls = $("#cls-filter").value;
+    return data.students.filter(s => !cls || s.cls === cls).map(s => {
+      const lv = levelOf(s.xp), st = stageOf(lv);
+      return Object.assign({}, s, { lv, stage: st, seatN: parseInt(s.seat, 10) });
+    });
+  }
+  function render() {
+    const list = rows(), active = C.stations.filter(s => !s.sealed);
+    /* 指標 */
+    const n = list.length, avgXp = n ? Math.round(list.reduce((a, s) => a + s.xp, 0) / n) : 0;
+    const weekAgo = Date.now() - 7 * 864e5, activeN = list.filter(s => s.last && s.last > weekAgo).length;
+    const stageCount = [1, 2, 3, 4].map(i => list.filter(s => s.stage.id === i).length);
+    const bossRate = active.map(st => ({ st, n: list.filter(s => s.bosses.includes(st.id)).length }));
+    const best = bossRate.slice().sort((a, b) => b.n - a.n)[0];
+    $("#metrics").innerHTML = `
+      <div class="metric"><span>學生人數</span><b>${n}</b><small>近 7 天活躍 ${activeN} 人</small></div>
+      <div class="metric"><span>平均 XP</span><b>${avgXp}</b><small>平均 Lv.${levelOf(avgXp)}</small></div>
+      <div class="metric"><span>角色階段分布</span><b style="font-size:18px">${stageCount.join(" ・ ")}</b><small>見習 ・ 學徒 ・ 騎士 ・ 守護者</small></div>
+      <div class="metric"><span>魔王擊破最多</span><b style="font-size:18px">${best && best.n ? esc(best.st.name) : "—"}</b><small>${best && best.n ? best.n + " / " + n + " 人" : "尚無人擊破"}</small></div>`;
+    /* 表格 */
+    const k = sortKey, d = sortDir;
+    list.sort((a, b) => {
+      const va = k === "seat" ? a.seatN : k === "name" ? a.name : k === "cls" ? a.cls : k === "last" ? (a.last || 0) : a[k];
+      const vb = k === "seat" ? b.seatN : k === "name" ? b.name : k === "cls" ? b.cls : k === "last" ? (b.last || 0) : b[k];
+      return (va > vb ? 1 : va < vb ? -1 : 0) * d || (a.cls > b.cls ? 1 : -1) || a.seatN - b.seatN;
+    });
+    const head = `<tr><th data-k="cls">班級</th><th data-k="seat">座號</th><th data-k="name">暱稱</th><th data-k="lv">等級</th><th data-k="xp">XP</th>${C.stations.map(s => `<th class="st" title="${esc(s.chapter)}">${s.num} ${esc(s.name.slice(0, 4))}</th>`).join("")}<th data-k="last">最後活動</th></tr>`;
+    const body = list.map(s => `<tr><td>${esc(s.cls)}</td><td>${esc(s.seat)}</td><td class="l">${esc(s.name)}</td>
+      <td><span class="lvtag s${s.stage.id}">Lv.${s.lv} ${esc(s.stage.name)}</span></td>
+      <td>${s.xp}</td>
+      ${C.stations.map(st => {
+        if (s.bosses.includes(st.id)) return `<td><i class="dot d2" title="已擊敗魔王">✓</i></td>`;
+        const ids = st.lessons.map(l => l.id).concat(st.project ? [st.project.id] : []);
+        const done = ids.filter(id => s.lessons.includes(id)).length;
+        return done ? `<td><i class="dot d1" title="完成 ${done}/${ids.length} 項任務">${done}</i></td>` : `<td><i class="dot d0">·</i></td>`;
+      }).join("")}
+      <td>${fmt(s.last)}</td></tr>`).join("");
+    $("#roster").innerHTML = head + (body || `<tr><td colspan="${6 + C.stations.length}" style="color:var(--muted);padding:20px">還沒有學生資料。學生登入主城後就會出現在這裡。</td></tr>`);
+    /* 動態 */
+    const nameOf = id => { for (const st of C.stations) { const l = st.lessons.find(x => x.id === id) || (st.project && st.project.id === id ? st.project : null); if (l) return `${st.name}・${l.title}`; } return id; };
+    const cls = $("#cls-filter").value;
+    $("#feed").innerHTML = data.recent.filter(e => !cls || e.cls === cls).map(e => e.type === "boss"
+      ? `<div class="fboss"><span>${fmt(e.t)}</span><b>${esc(e.cls)}-${esc(e.seat)} ${esc(e.name)}</b>擊敗了「${esc((C.stations.find(s => s.id === e.id) || {}).boss?.name || e.id)}」 +${e.xp} XP</div>`
+      : `<div><span>${fmt(e.t)}</span><b>${esc(e.cls)}-${esc(e.seat)} ${esc(e.name)}</b>完成 ${esc(nameOf(e.id))} +${e.xp} XP</div>`).join("") || '<div>目前沒有動態。</div>';
+  }
+  $("#roster").addEventListener("click", e => { const th = e.target.closest("th[data-k]"); if (!th) return; const k = th.dataset.k; sortDir = sortKey === k ? -sortDir : (k === "xp" || k === "lv" || k === "last" ? -1 : 1); sortKey = k; render(); });
+  $("#cls-filter").addEventListener("change", render);
+  $("#refresh").addEventListener("click", load);
+  $("#export").addEventListener("click", () => {
+    const list = rows(); const head = ["班級", "座號", "暱稱", "等級", "階段", "XP"].concat(C.stations.map(s => s.name), ["最後活動"]);
+    const lines = [head].concat(list.map(s => [s.cls, s.seat, s.name, s.lv, s.stage.name, s.xp].concat(C.stations.map(st => s.bosses.includes(st.id) ? "擊敗" : (st.lessons.some(l => s.lessons.includes(l.id)) ? "進行中" : "")), [s.last ? new Date(s.last).toLocaleString() : ""])));
+    const csv = "﻿" + lines.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = `MATHORIA_進度_${$("#cls-filter").value || "全部"}.csv`; a.click();
+  });
+
+  /* ---------- 核可碼 ---------- */
+  function approvalCode(secret, cls, seat, stationId) {
+    const str = `${secret}|${String(cls).trim()}|${String(parseInt(seat, 10))}|${stationId}`;
+    let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    let h2 = 0x811c9dc5; for (let i = str.length - 1; i >= 0; i--) { h2 ^= str.charCodeAt(i); h2 = Math.imul(h2, 0x01000193) >>> 0; }
+    return ((h.toString(36) + h2.toString(36)).toUpperCase().replace(/[^A-Z0-9]/g, "") + "ZZZZZZ").slice(0, 6);
+  }
+  $("#codes-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const cls = $("#code-cls").value.trim(), a = +$("#from").value, b = +$("#to").value, out = $("#codes-out");
+    let stations = C.stations, rowsOut = [];
+    if (API) {
+      out.innerHTML = '<p class="note">產生中…</p>';
+      const r = await get({ action: "codes", cls, from: a, to: b });
+      if (!r.ok) { out.innerHTML = `<p class="err">失敗：${esc(r.error)}</p>`; return; }
+      rowsOut = r.rows.map(x => ({ seat: x.seat, codes: x.codes }));
+    } else {
+      const secret = $("#secret").value;
+      if (secret !== C.approvalSecret) { out.innerHTML = '<p class="err">密語不正確。</p>'; return; }
+      for (let s = a; s <= b; s++) rowsOut.push({ seat: s, codes: stations.map(st => approvalCode(secret, cls, s, st.id)) });
+    }
+    out.innerHTML = `<p class="note" style="margin-top:14px">${esc(cls)} 班 ・ 座號 ${a}–${b} ・ <button class="btn-line noprint" onclick="window.print()">列印這張表</button></p>
+      <div class="tbl-wrap" style="margin-top:8px"><table><thead><tr><th>座號</th>${stations.map(st => `<th class="st">${st.num} ${esc(st.name)}</th>`).join("")}</tr></thead>
+      <tbody>${rowsOut.map(r => `<tr><td>${r.seat}</td>${r.codes.map(c => `<td class="code">${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  });
+})();
+</script>
+</body>
+</html>
