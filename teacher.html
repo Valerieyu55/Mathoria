@@ -49,6 +49,13 @@
   .feed .fboss{color:var(--gold2)}
   .ok{color:var(--ok)}
   .hidden{display:none!important}
+  .pv-launch{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:12px}
+  .pv-card{display:block;text-decoration:none;color:#fff;background:linear-gradient(135deg,rgba(167,155,240,.18),rgba(255,255,255,.04));border:1px solid rgba(217,167,255,.45);border-radius:16px;padding:14px 16px;transition:transform .15s,border-color .15s}
+  .pv-card:hover{transform:translateY(-2px);border-color:var(--gold)}
+  .pv-card b{display:block;font-family:var(--serif);font-size:16px;color:#f0d6ff}
+  .pv-card span{font-size:12px;color:var(--muted)}
+  .pv-card.gold{background:linear-gradient(135deg,rgba(224,178,74,.25),rgba(255,255,255,.04));border-color:var(--gold)}
+  .pv-card.gold b{color:var(--gold2)}
   .legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin:8px 0 0}
   @media print{body{background:#fff;color:#000}.tbar,.noprint{display:none}.tcard{border-color:#999}th{color:#000;background:#eee}}
 </style>
@@ -63,6 +70,17 @@
 </header>
 
 <main class="tpage">
+
+  <!-- 關卡預覽 -->
+  <section class="tcard noprint">
+    <h2>關卡預覽 <small>不需金鑰・不寫入試算表・不影響這台電腦上學生的進度</small></h2>
+    <p class="note">以學生視角瀏覽全部八個據點（包含仍在迷霧封印中的），魔王戰免核可碼。進入後下方有工具列，可隨時切換進度、角色階段、造型與寵物。</p>
+    <div class="pv-launch">
+      <a class="pv-card" href="index.html?mode=preview&state=new"><b>全新學生</b><span>剛入學，只開放第一站</span></a>
+      <a class="pv-card" href="index.html?mode=preview&state=mid"><b>進行中</b><span>前兩站已破關、第三站進行中</span></a>
+      <a class="pv-card gold" href="index.html?mode=preview&state=all"><b>全數破關</b><span>八枚徽章、數域守護者型態</span></a>
+    </div>
+  </section>
 
   <!-- 登入 -->
   <section class="tcard" id="login-card">

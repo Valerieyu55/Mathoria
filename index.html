@@ -18,18 +18,19 @@
   <div class="gate-overlay">
     <p class="gate-tag">G9 數學 × 探索 × 挑戰 × 成長</p>
     <button class="btn-gold big gate-cta" id="btn-start">開始冒險 ✦</button>
+    <button class="gate-guest" id="btn-guest">訪客試玩・免登記</button>
     <p class="gate-credit">指導老師：余佳霖老師 ・ Find the value of you!</p>
   </div>
 
   <div class="modal gate-modal" id="modal-gate" hidden>
     <div class="modal-box gate-card">
       <button class="modal-close" data-close>✕</button>
-      <h2 class="modal-title">入學登記</h2>
-      <p class="modal-sub">建立你的冒險者，進入數域魔法學院。</p>
+      <h2 class="modal-title" id="gate-title">入學登記</h2>
+      <p class="modal-sub" id="gate-sub">建立你的冒險者，進入數域魔法學院。</p>
       <form id="gate-form" class="gate-form" autocomplete="off">
         <div class="row">
-          <label>班級<input id="in-class" type="text" inputmode="numeric" placeholder="例：901" maxlength="6" required></label>
-          <label>座號<input id="in-seat" type="text" inputmode="numeric" placeholder="例：12" maxlength="3" required></label>
+          <label class="real-only">班級<input id="in-class" type="text" inputmode="numeric" placeholder="例：901" maxlength="6" required></label>
+          <label class="real-only">座號<input id="in-seat" type="text" inputmode="numeric" placeholder="例：12" maxlength="3" required></label>
           <label class="wide">冒險者暱稱<input id="in-name" type="text" placeholder="你在學院裡的名字" maxlength="12" required></label>
         </div>
         <p class="field-label">選擇你的造型</p>
@@ -40,8 +41,8 @@
         <p class="field-label">選擇專屬寵物夥伴</p>
         <div class="pick-row pets" id="pick-pet"></div>
         <p id="gate-err" class="err" hidden></p>
-        <button class="btn-gold big" type="submit">入學・進入數域 ✦</button>
-        <p class="gate-note">進度會儲存在這台裝置的瀏覽器裡。換裝置時請用同一組班級座號登入。</p>
+        <button class="btn-gold big" type="submit" id="gate-submit">入學・進入數域 ✦</button>
+        <p class="gate-note real-only">進度會儲存在這台裝置的瀏覽器裡。換裝置時請用同一組班級座號登入。</p>
       </form>
     </div>
   </div>
@@ -86,6 +87,16 @@
   <div class="ui-bottomleft">
     <button class="ui-round" id="btn-sound" title="音樂開關">🔊</button>
     <button class="ui-round" id="btn-fullmap" title="全螢幕">⛶</button>
+  </div>
+  <div class="mode-bar" id="mode-bar" hidden>
+    <span>訪客模式・進度不會儲存</span>
+    <button class="btn-gold" id="mode-cta">建立正式角色</button>
+  </div>
+  <div class="preview-bar" id="preview-bar" hidden>
+    <b>教師預覽</b>
+    <span class="pv-group"><button data-pv="new">全新</button><button data-pv="mid">進行中</button><button data-pv="all">全數破關</button></span>
+    <span class="pv-group"><button data-pstage="1">Lv.1</button><button data-pstage="2">Lv.6</button><button data-pstage="3">Lv.16</button><button data-pstage="4">Lv.26</button></span>
+    <span class="pv-group"><button id="pv-gender">女生造型</button><button id="pv-pet">寵物</button></span>
   </div>
   <p class="ui-hint" id="ui-hint">拖曳可移動地圖 ・ 點擊據點進入</p>
 </section>

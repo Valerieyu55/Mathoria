@@ -31,8 +31,9 @@ window.MATHORIA_CONFIG = {
     { id: 4, min: 26, name: "數域守護者", en: "Math Guardian",   desc: "集結所有數學法則的力量，探索未知領域，成為數域世界的守護者。" }
   ],
 
-  /* 每升一級所需 XP：50 + 5×(等級-1)。全部任務完成約可到 Lv.28 */
-  xpForLevel: function (lv) { return 50 + 5 * (lv - 1); },
+  /* 每升一級所需 XP：40 + 3×(等級-1)。
+     全部任務約 2170 XP ≈ Lv.28；第一站全破約 Lv.8（符文學徒），學期中段到 Lv.16（法則騎士），全破才進化為數域守護者。 */
+  xpForLevel: function (lv) { return 40 + 3 * (lv - 1); },
 
   /* 寵物 */
   pets: [

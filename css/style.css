@@ -284,3 +284,20 @@ input{font:inherit}
 .ui-char .pet.token{left:-54px;bottom:6px;height:min(12vh,96px);width:min(12vh,96px);border-radius:50%;border:3px solid var(--gold);box-shadow:0 0 0 3px rgba(13,16,48,.5),0 0 22px rgba(167,155,240,.8);background:#fff6df;filter:none}
 .status-petimg{position:absolute;right:-30px;bottom:0;height:110px;width:auto}
 .status-petimg.token{right:-6px;bottom:6px;height:86px;width:86px;border-radius:50%;border:3px solid var(--gold);box-shadow:0 0 0 3px rgba(13,16,48,.5),0 0 18px rgba(167,155,240,.7);background:#fff6df}
+
+/* 訪客／教師預覽 */
+.gate-guest{background:rgba(10,12,36,.55);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:999px;padding:9px 26px;font-size:14px;letter-spacing:.08em}
+.gate-guest:hover{background:rgba(255,255,255,.15)}
+.gate-modal.is-guest .real-only{display:none}
+.gate-modal.is-guest .gate-form .row{grid-template-columns:1fr}
+.mode-bar{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:31;display:flex;align-items:center;gap:12px;background:rgba(10,12,36,.8);backdrop-filter:blur(10px);border:1px solid rgba(143,208,255,.6);border-radius:999px;padding:6px 6px 6px 18px;font-size:13px;color:#cfe9ff;box-shadow:0 8px 20px rgba(0,0,0,.45)}
+.mode-bar .btn-gold{padding:6px 14px;font-size:13px}
+.preview-bar{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);z-index:31;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px;background:rgba(10,12,36,.86);backdrop-filter:blur(10px);border:1px solid rgba(217,167,255,.7);border-radius:18px;padding:8px 12px;box-shadow:0 10px 26px rgba(0,0,0,.5);max-width:94vw}
+.preview-bar b{font-family:var(--serif);color:#f0d6ff;letter-spacing:.15em;font-size:13px}
+.pv-group{display:flex;background:rgba(255,255,255,.06);border-radius:999px;padding:2px}
+.pv-group button{background:none;border:0;color:#e8e3ff;font-size:12px;padding:6px 11px;border-radius:999px}
+.pv-group button:hover{background:rgba(255,255,255,.1)}
+.pv-group button.on{background:linear-gradient(180deg,var(--gold2),var(--gold));color:#3b2a08;font-weight:700}
+@media (max-width:640px){.mode-bar{top:auto;bottom:118px;font-size:12px}.preview-bar{bottom:64px;gap:6px;padding:6px}.pv-group button{padding:5px 8px;font-size:11px}}
+
+body.mode-preview .toast{bottom:150px}

@@ -11,14 +11,19 @@
   let profile = null, prog = null;
 
   function loadProfile() { try { return JSON.parse(localStorage.getItem(KEY_PROFILE)); } catch (e) { return null; } }
-  function saveProfile() { localStorage.setItem(KEY_PROFILE, JSON.stringify(profile)); }
+  /* 模式：student 正式學生｜guest 訪客試玩（不存檔、不回傳）｜preview 教師預覽（全關卡開放、可切換進度） */
+  let MODE = "student";
+  const isReal = () => MODE === "student";
+  function saveProfile() { if (isReal()) localStorage.setItem(KEY_PROFILE, JSON.stringify(profile)); }
+  function blankProgress() { return { xp: 0, done: {}, bosses: {}, stats: { calc: 0, shape: 0, reason: 0, proof: 0, apply: 0 }, log: [] }; }
   function loadProgress() {
+    if (!isReal()) { if (!prog) prog = blankProgress(); return; }
     try { prog = JSON.parse(localStorage.getItem(keyProgress(profile))); } catch (e) { prog = null; }
     if (!prog) prog = { xp: 0, done: {}, bosses: {}, stats: { calc: 0, shape: 0, reason: 0, proof: 0, apply: 0 }, log: [] };
     prog.stats = Object.assign({ calc: 0, shape: 0, reason: 0, proof: 0, apply: 0 }, prog.stats || {});
     prog.log = prog.log || [];
   }
-  function saveProgress() { localStorage.setItem(keyProgress(profile), JSON.stringify(prog)); }
+  function saveProgress() { if (isReal()) localStorage.setItem(keyProgress(profile), JSON.stringify(prog)); }
 
   /* ---------- 等級／階段 ---------- */
   function levelInfo(xp) {
@@ -99,6 +104,7 @@
     return { done, total, pct: Math.round(done / total * 100) };
   }
   function isOpen(st) {
+    if (MODE === "preview") return true;
     if (st.sealed) return false;
     if (st.isFinal) return C.stations.filter(s => !s.sealed && !s.isFinal).every(s => prog.bosses[s.id]);
     const active = C.stations.filter(s => !s.sealed && !s.isFinal);
@@ -129,11 +135,30 @@
     }));
     const saved = loadProfile();
     if (saved) { $("#in-class").value = saved.cls; $("#in-seat").value = saved.seat; $("#in-name").value = saved.name; }
-    $("#btn-start").addEventListener("click", () => { $("#modal-gate").hidden = false; A.sfx("open"); setTimeout(() => $("#in-class").focus(), 50); });
+    let guestPick = false;
+    const openGate = (guest) => {
+      guestPick = guest;
+      $("#modal-gate").classList.toggle("is-guest", guest);
+      $("#in-class").required = !guest; $("#in-seat").required = !guest; $("#in-name").required = !guest;
+      $("#gate-title").textContent = guest ? "訪客試玩" : "入學登記";
+      $("#gate-sub").textContent = guest ? "不用填班級座號，進度不會儲存，關掉網頁就重來。" : "建立你的冒險者，進入數域魔法學院。";
+      $("#gate-submit").textContent = guest ? "開始試玩 ✦" : "入學・進入數域 ✦";
+      $("#modal-gate").hidden = false; A.sfx("open");
+      setTimeout(() => (guest ? $("#in-name") : $("#in-class")).focus(), 50);
+    };
+    $("#btn-start").addEventListener("click", () => openGate(false));
+    $("#btn-guest").addEventListener("click", () => openGate(true));
     $("#gate-form").addEventListener("submit", e => {
       e.preventDefault();
-      const cls = $("#in-class").value.trim(), seat = $("#in-seat").value.trim(), name = $("#in-name").value.trim();
       const err = $("#gate-err");
+      if (guestPick) {
+        MODE = "guest"; prog = null;
+        profile = { guest: true, cls: "訪客", seat: "0", name: $("#in-name").value.trim() || "訪客冒險者",
+          gender: $("#pick-gender .is-on").dataset.v, pet: $("#pick-pet .is-on").dataset.v };
+        err.hidden = true; $("#modal-gate").hidden = true; enterHub(); armAudio(); return;
+      }
+      MODE = "student";
+      const cls = $("#in-class").value.trim(), seat = $("#in-seat").value.trim(), name = $("#in-name").value.trim();
       if (!cls || !seat || !name) { err.textContent = "請填寫班級、座號與暱稱。"; err.hidden = false; return; }
       if (!/^\d{1,3}$/.test(seat)) { err.textContent = "座號請填數字。"; err.hidden = false; return; }
       err.hidden = true;
@@ -151,9 +176,9 @@
     pan = { x: 0, y: 0 }; layoutStage();
     const cur = currentStation(); if (cur) centerOn(cur);
     updateSoundBtn();
-    if (API) { apiPost({ action: "login" }).catch(() => {}); flushOutbox().then(syncFromCloud); }
+    if (API && isReal()) { apiPost({ action: "login" }).catch(() => {}); flushOutbox().then(syncFromCloud); }
   }
-  function renderAll() { renderHUD(); renderMap(); renderList(); renderQuest(); }
+  function renderAll() { renderHUD(); renderMap(); renderList(); renderQuest(); if (typeof renderModeBar === "function" && MODE !== "student") renderModeBar(); }
 
   function renderHUD() {
     const li = levelInfo(prog.xp), st = stageOf(li.lv), nx = nextStage(li.lv);
@@ -252,41 +277,44 @@
             <p class="b-myth"><b>它的迷思：</b>${st.boss.myth}</p>
             <p class="b-hint">破解之道：${st.boss.hint}</p>
             ${bossDone ? `<p class="b-note">你已獲得徽章與 ${bossXP} XP。</p>` : `
-              <div class="b-form"><input id="boss-code" placeholder="核可碼" maxlength="6"><button class="btn-gold" data-boss="${st.id}" data-xp="${bossXP}">擊破迷思 ✦</button><span id="boss-err" class="err" hidden></span></div>
-              <p class="b-note">完成本章段考或老師指定的魔王挑戰後，向老師索取你的專屬核可碼。</p>`}
+              ${isReal() ? `<div class="b-form"><input id="boss-code" placeholder="核可碼" maxlength="6"><button class="btn-gold" data-boss="${st.id}" data-xp="${bossXP}">擊破迷思 ✦</button><span id="boss-err" class="err" hidden></span></div>
+              <p class="b-note">完成本章段考或老師指定的魔王挑戰後，向老師索取你的專屬核可碼。</p>`
+              : `<div class="b-form"><button class="btn-gold" data-boss="${st.id}" data-xp="${bossXP}">${MODE === "preview" ? "預覽擊敗畫面 ✦" : "試玩擊敗魔王 ✦"}</button><span id="boss-err" class="err" hidden></span></div>
+              <p class="b-note">${MODE === "preview" ? "教師預覽：免核可碼，不會寫入試算表。" : "訪客模式免核可碼，可以先體驗擊敗魔王的感覺。正式學生需向老師索取核可碼。"}</p>`}`}
           </div></div>`;
     }
     $("#station-content").innerHTML = `
       <div class="st-head"><img src="assets/badge/${st.badge}" alt="" style="${state === "cleared" ? "" : "filter:grayscale(1) brightness(.6)"}">
         <div><p class="k">${st.term}・${st.chapter}・進度 ${p.done}/${p.total}</p><h2>${st.num}・${st.name}<small>${st.en}</small></h2></div></div>
-      <p class="st-intro">${st.intro}</p>${body}`;
+      <p class="st-intro">${st.intro}</p>${MODE === "preview" && st.sealed ? `<div class="st-sealed" style="margin-bottom:12px">👁️ 教師預覽：這座據點目前對學生仍是「迷霧封印」。</div>` : ""}${body}`;
     $("#modal-station").hidden = false;
     A.sfx("open");
   }
 
   function completeLesson(id, xp, stat) {
     if (prog.done[id]) return;
-    if (!confirm("確定你已經完成這個任務了嗎？\n誠實回報，才是真正的守護者精神。")) return;
+    if (isReal() && !confirm("確定你已經完成這個任務了嗎？\n誠實回報，才是真正的守護者精神。")) return;
     prog.done[id] = true; prog.log.push({ t: Date.now(), id, xp });
     if (stat && prog.stats[stat] !== undefined) prog.stats[stat] += 1;
     gainXP(xp, "任務完成");
     openStation(openStationId);
-    if (API) { const item = { action: "lesson", id, xp }; apiPost(item).then(r => { if (!r.ok) queue(item); }).catch(() => queue(item)); }
+    if (API && isReal()) { const item = { action: "lesson", id, xp }; apiPost(item).then(r => { if (!r.ok) queue(item); }).catch(() => queue(item)); }
   }
   async function defeatBoss(stId, xp) {
     const st = C.stations.find(s => s.id === stId);
     const input = $("#boss-code"), err = $("#boss-err"), btn = $("[data-boss]");
-    const code = (input.value || "").trim().toUpperCase();
+    const code = input ? (input.value || "").trim().toUpperCase() : "";
     const fail = (msg) => { err.textContent = msg; err.hidden = false; input.focus(); A.sfx("fail"); };
-    if (!/^[A-Z0-9]{6}$/.test(code)) return fail("核可碼是 6 個英文或數字。");
-    if (API) {
+    if (!isReal()) { /* 訪客／預覽：免核可碼直接體驗 */ }
+    else if (!/^[A-Z0-9]{6}$/.test(code)) return fail("核可碼是 6 個英文或數字。");
+    else if (API) {
       btn.disabled = true; btn.textContent = "驗證中…";
       try {
         const r = await apiPost({ action: "boss", station: stId, code });
         if (!r.ok) { btn.disabled = false; btn.textContent = "擊破迷思 ✦"; return fail(r.error === "bad_code" ? "核可碼不正確，再確認一次。" : "暫時連不上學院伺服器，稍後再試。"); }
         xp = r.xp || xp;
       } catch (e) { btn.disabled = false; btn.textContent = "擊破迷思 ✦"; return fail("暫時連不上學院伺服器，稍後再試。"); }
-    } else if (code !== approvalCode(profile.cls, profile.seat, stId)) {
+    } else if (isReal() && code !== approvalCode(profile.cls, profile.seat, stId)) {
       return fail("核可碼不正確，再確認一次。");
     }
     prog.bosses[stId] = true; prog.log.push({ t: Date.now(), id: "boss:" + stId, xp });
@@ -394,7 +422,16 @@
     $("#ui-char").addEventListener("click", () => { A.sfx("click"); $("#modal-status").hidden = false; });
     $("#btn-teacher").addEventListener("click", () => location.href = "teacher.html");
     $("#btn-home").addEventListener("click", () => { $("#screen-hub").hidden = true; $("#screen-gate").hidden = false; });
-    $("#btn-logout").addEventListener("click", () => { $("#screen-hub").hidden = true; $("#screen-gate").hidden = false; });
+    $("#btn-logout").addEventListener("click", () => {
+      if (MODE === "preview") { location.href = "teacher.html"; return; }
+      if (MODE === "guest") { MODE = "student"; prog = null; profile = null; }
+      $("#screen-hub").hidden = true; $("#screen-gate").hidden = false; renderModeBar();
+    });
+    $("#mode-cta").addEventListener("click", () => { MODE = "student"; prog = null; $("#screen-hub").hidden = true; $("#screen-gate").hidden = false; renderModeBar(); $("#btn-start").click(); });
+    $$("#preview-bar [data-pv]").forEach(b => b.addEventListener("click", () => applyPreview(b.dataset.pv)));
+    $$("#preview-bar [data-pstage]").forEach(b => b.addEventListener("click", () => applyPreviewStage(+b.dataset.pstage)));
+    $("#pv-gender").addEventListener("click", () => { profile.gender = profile.gender === "male" ? "female" : "male"; renderAll(); });
+    $("#pv-pet").addEventListener("click", () => { const i = C.pets.findIndex(p => p.id === profile.pet); profile.pet = C.pets[(i + 1) % C.pets.length].id; renderAll(); });
     $("#btn-sound").addEventListener("click", () => { audioArmed = true; A.toggle(); updateSoundBtn(); });
     $("#btn-fullmap").addEventListener("click", () => { if (document.fullscreenElement) document.exitFullscreen(); else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen(); });
     document.addEventListener("fullscreenchange", () => setTimeout(layoutStage, 50));
@@ -403,8 +440,47 @@
     bindStage();
   }
 
+  /* ---------- 訪客／預覽 ---------- */
+  function renderModeBar() {
+    const bar = $("#mode-bar"), pv = $("#preview-bar");
+    bar.hidden = MODE !== "guest"; pv.hidden = MODE !== "preview";
+    document.body.classList.toggle("mode-guest", MODE === "guest");
+    document.body.classList.toggle("mode-preview", MODE === "preview");
+    if (MODE === "preview") {
+      const lv = levelInfo(prog.xp).lv, st = stageOf(lv);
+      $$("#preview-bar [data-pstage]").forEach(b => b.classList.toggle("on", +b.dataset.pstage === st.id));
+      $$("#preview-bar [data-pv]").forEach(b => b.classList.toggle("on", b.dataset.pv === pvState));
+      $("#pv-gender").textContent = profile.gender === "male" ? "男生造型" : "女生造型";
+      $("#pv-pet").textContent = "寵物：" + (C.pets.find(p => p.id === profile.pet) || C.pets[0]).name;
+    }
+  }
+  const xpAtLevel = lv => { let t = 0; for (let i = 1; i < lv; i++) t += C.xpForLevel(i); return t; };
+  let pvState = "new";
+  function allItems(st) { return st.lessons.concat(st.project ? [st.project] : []); }
+  function applyPreview(kind) {
+    pvState = kind; prog = blankProgress();
+    const list = C.stations;
+    const mark = (st, boss) => { allItems(st).forEach(l => { prog.done[l.id] = true; prog.stats[l.stat] = (prog.stats[l.stat] || 0) + 1; prog.xp += l === st.project ? C.xp.project : C.xp.lesson; });
+      if (boss) { prog.bosses[st.id] = true; prog.xp += st.isFinal ? C.xp.finalBoss : C.xp.boss; } };
+    if (kind === "mid") { list.slice(0, 2).forEach(st => mark(st, true)); const third = list[2]; prog.done[third.lessons[0].id] = true; prog.xp += C.xp.lesson; }
+    if (kind === "all") list.forEach(st => mark(st, true));
+    renderAll(); renderModeBar(); const cur = currentStation(); if (cur) centerOn(cur);
+    toast(kind === "new" ? "預覽：全新學生" : kind === "mid" ? "預覽：進行中（前兩站已破關）" : "預覽：全數破關");
+  }
+  function applyPreviewStage(stageId) {
+    const st = C.stages.find(s => s.id === stageId); prog.xp = xpAtLevel(st.min);
+    renderAll(); renderModeBar(); showLevelUp(true, st.min, st);
+  }
+
   /* ---------- 啟動 ---------- */
   initGate(); bind();
+  const urlMode = new URLSearchParams(location.search).get("mode");
+  if (urlMode === "preview") {
+    MODE = "preview"; prog = blankProgress();
+    profile = { preview: true, cls: "預覽", seat: "0", name: "教師預覽", gender: "female", pet: "crystal_fox" };
+    $("#screen-gate").hidden = true; enterHub(); renderModeBar();
+    applyPreview(new URLSearchParams(location.search).get("state") || "new");
+  } else renderModeBar();
   const saved = loadProfile();
-  if (saved && saved.cls && saved.seat && saved.name) { profile = saved; enterHub(); }
+  if (urlMode !== "preview" && saved && saved.cls && saved.seat && saved.name) { profile = saved; enterHub(); }
 })();
