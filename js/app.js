@@ -322,7 +322,7 @@
     const st = C.stations.find(s => s.id === stId);
     const input = $("#boss-code"), err = $("#boss-err"), btn = $("[data-boss]");
     const code = input ? (input.value || "").trim().toUpperCase() : "";
-    const fail = (msg) => { err.textContent = msg; err.hidden = false; input.focus(); A.sfx("fail"); };
+    const fail = (msg) => { err.textContent = msg; err.hidden = false; if (input) input.focus(); A.sfx("counter"); const bx = $(".boss"); if (bx) { bx.classList.remove("shake"); void bx.offsetWidth; bx.classList.add("shake"); } };
     if (!isReal()) { /* 訪客／預覽：免核可碼直接體驗 */ }
     else if (!/^[A-Z0-9]{6}$/.test(code)) return fail("核可碼是 6 個英文或數字。");
     else if (API) {
@@ -336,9 +336,12 @@
       return fail("核可碼不正確，再確認一次。");
     }
     prog.bosses[stId] = true; prog.log.push({ t: Date.now(), id: "boss:" + stId, xp });
-    A.sfx("boss");
-    renderStation(stId);
-    playStory(storyFor(stId, "bossAfter"), st, () => { gainXP(xp, `擊敗「${st.boss.name}」，獲得徽章！`); renderStation(stId); });
+    if (isReal()) saveProgress();
+    inBattle = true;
+    battle(st, () => {
+      renderStation(stId);
+      playStory(storyFor(stId, "bossAfter"), st, () => { inBattle = false; gainXP(xp, `擊敗「${st.boss.name}」，獲得徽章！`); renderStation(stId); setTimeout(() => A.theme("map"), 5000); });
+    });
   }
   function gainXP(xp, why) {
     const before = levelInfo(prog.xp), bs = stageOf(before.lv);
@@ -389,7 +392,8 @@
     B.hidden = !hasBoss; if (hasBoss) { B.src = `assets/boss/boss_${st.id}.png`; B.onerror = () => { B.hidden = true; }; }
     const pet = C.pets.find(p => p.id === profile.pet) || C.pets[0];
     const names = { player: profile.name, pet: pet.name, boss: st ? st.boss.name : "", narrator: "學院之聲" };
-    let i = -1, typing = null, full = "";
+    let i = -1, typing = null, full = "", bossShown = false;
+    if (hasBoss && !inBattle) A.theme("boss");
     const finish = () => { clearInterval(typing); typing = null; $("#dlg-text").textContent = full; };
     const show = () => {
       i++;
@@ -404,25 +408,34 @@
         el.classList.remove("m-happy", "m-shock", "m-think", "m-angry");
         if (l.who === w && l.mood) { void el.offsetWidth; el.classList.add("m-" + l.mood); }
       });
+      /* 音效：魔王第一次開口→登場吼聲；其他依情緒 */
+      if (l.who === "boss" && !bossShown) { bossShown = true; A.sfx(inBattle ? "boss-hurt" : "boss-appear"); B.classList.add("enter"); setTimeout(() => B.classList.remove("enter"), 900); }
+      else if (l.mood) A.sfx("m-" + l.mood);
       const T = $("#dlg-text"); T.textContent = ""; let k = 0; clearInterval(typing);
-      typing = setInterval(() => { k++; T.textContent = text.slice(0, k); if (k >= text.length) { clearInterval(typing); typing = null; } }, 28);
+      typing = setInterval(() => { k++; T.textContent = text.slice(0, k); const ch = text[k - 1];
+        if (k % 2 && ch && !/[\s，。！？、…「」（）～]/.test(ch)) A.voice(l.who);
+        if (k >= text.length) { clearInterval(typing); typing = null; } }, 30);
     };
-    const next = () => { A.sfx("click"); if (typing) finish(); else show(); };
+    const next = () => { A.sfx("page"); if (typing) finish(); else show(); };
     const key = e => { if (["Enter", " ", "ArrowRight"].includes(e.key)) { e.preventDefault(); e.stopPropagation(); next(); } if (e.key === "Escape") { e.stopPropagation(); close(); } };
     const close = () => {
-      clearInterval(typing); box.hidden = true; dlgBusy = false;
+      clearInterval(typing); box.hidden = true; dlgBusy = false; A.sfx("dlg-out");
+      if (hasBoss && !inBattle) A.theme("map");
       box.removeEventListener("click", onClick); document.removeEventListener("keydown", key, true);
       if (done) done();
       if (dlgQueue.length && !dlgBusy) { const q = dlgQueue.shift(); setTimeout(() => playStory(...q), 250); }
     };
-    const onClick = e => { if (e.target.closest("#dlg-skip")) { close(); return; } next(); };
+    const onClick = e => { if (e.target.closest("#dlg-skip")) { A.sfx("click"); close(); return; } next(); };
     box.addEventListener("click", onClick); document.addEventListener("keydown", key, true);
-    box.hidden = false; show();
+    box.hidden = false; A.sfx("dlg-in"); show();
   }
   function allDone(st) { return st.lessons.every(l => prog.done[l.id]) && (!st.project || prog.done[st.project.id]); }
   function maybeBossBefore(st) {
     if (!st || prog.bosses[st.id] || !allDone(st) || seen("bossBefore:" + st.id)) return;
-    setTimeout(() => playStory(storyFor(st.id, "bossBefore"), st, () => markSeen("bossBefore:" + st.id)), 700);
+    setTimeout(() => {
+      if (!$("#modal-levelup").hidden) { pendingBossBefore = st; return; }   /* 等升級畫面關掉再登場 */
+      playStory(storyFor(st.id, "bossBefore"), st, () => markSeen("bossBefore:" + st.id));
+    }, 700);
   }
   function openStation(id) {
     const st = C.stations.find(s => s.id === id); if (!st) return;
@@ -431,10 +444,88 @@
       playStory(storyFor(id, "enter"), st, () => { markSeen("enter:" + id); open(); });
     } else open();
   }
+  let pendingBossBefore = null;
   function afterLevelUp() {
-    if (!pendingEvolve) return; const s = pendingEvolve; pendingEvolve = null;
-    playStory(S.evolve[s], null);
+    if (pendingEvolve) { const s = pendingEvolve; pendingEvolve = null; playStory(S.evolve[s], null); }
+    if (pendingBossBefore) { const st = pendingBossBefore; pendingBossBefore = null; setTimeout(() => maybeBossBefore(st), 300); }
   }
+
+
+  /* ---------- 魔王戰動畫 ---------- */
+  let inBattle = false;
+  function battle(st, done) {
+    const ov = $("#battle"), stage = stageOf(levelInfo(prog.xp).lv).id;
+    const pet = C.pets.find(p => p.id === profile.pet) || C.pets[0];
+    $("#bt-boss").src = `assets/boss/boss_${st.id}.png`; $("#bt-player").src = charImg(stage); $("#bt-pet").src = petImg(stage);
+    $("#bt-bossname").textContent = st.boss.name; $("#bt-hp").style.width = "100%"; $("#bt-hpnum").textContent = "100%";
+    $("#bt-log").textContent = ""; ov.className = "battle"; ov.hidden = false;
+    A.theme("boss");
+    const T = []; let ended = false;
+    const at = (ms, fn) => T.push(setTimeout(() => { if (!ended) fn(); }, ms));
+    const log = t => { const L = $("#bt-log"); L.textContent = t; L.classList.remove("pop"); void L.offsetWidth; L.classList.add("pop"); };
+    const hp = v => { $("#bt-hp").style.width = v + "%"; $("#bt-hpnum").textContent = v + "%"; };
+    const fx = c => { ov.classList.remove(c); void ov.offsetWidth; ov.classList.add(c); };
+    const dmg = (n, crit) => {
+      const d = document.createElement("span"); d.className = "bt-dmg" + (crit ? " crit" : ""); d.textContent = (crit ? "CRITICAL! " : "") + "-" + n;
+      d.style.left = (45 + Math.random() * 18) + "%"; $("#bt-field").appendChild(d); setTimeout(() => d.remove(), 1300);
+    };
+    const shot = (cls) => { const s = document.createElement("i"); s.className = "bt-shot " + cls; $("#bt-field").appendChild(s); setTimeout(() => s.remove(), 700); };
+    const spell = (st.lessons[0] && C.stats[st.lessons[0].stat]) || "智慧";
+    at(0, () => { A.sfx("boss-appear"); fx("intro"); log(`魔王「${st.boss.name}」出現了！`); });
+    at(1300, () => { ov.classList.add("heroes"); A.sfx("charge"); log(`${profile.name} 詠唱「${spell}魔法」…`); });
+    at(1850, () => { A.sfx("magic"); shot("magic"); });
+    at(2150, () => { A.sfx("hit"); A.sfx("boss-hurt"); fx("shake"); fx("bhit"); dmg(120 + Math.floor(Math.random() * 60)); hp(68); });
+    at(2700, () => { log(`${pet.name} 發動突擊！`); A.sfx("slash"); shot("slash"); });
+    at(2950, () => { A.sfx("hit"); fx("shake"); fx("bhit"); dmg(80 + Math.floor(Math.random() * 40)); hp(41); });
+    at(3500, () => { log(`看穿迷思！${profile.name} 與 ${pet.name} 合力一擊！`); A.sfx("charge"); ov.classList.add("charge"); });
+    at(4100, () => { ov.classList.remove("charge"); A.sfx("magic"); shot("final"); });
+    at(4350, () => { A.sfx("crit"); A.sfx("boss-hurt"); fx("shake-big"); fx("bhit"); dmg(999, true); hp(0); });
+    at(4900, () => { A.sfx("explode"); ov.classList.add("explode"); log(`「${st.boss.name}」的迷思被破解了！`); });
+    at(6100, () => { A.theme("victory"); A.sfx("victory"); ov.classList.add("win"); });
+    at(8600, end);
+    function end() {
+      if (ended) return; ended = true; T.forEach(clearTimeout);
+      ov.removeEventListener("click", skip); ov.hidden = true; ov.className = "battle"; $$("#bt-field .bt-dmg, #bt-field .bt-shot").forEach(x => x.remove());
+      done();
+    }
+    /* 點擊：戰鬥中→快轉到勝利；勝利畫面→繼續 */
+    function skip() {
+      if (ov.classList.contains("win")) { A.sfx("confirm"); end(); return; }
+      T.forEach(clearTimeout); T.length = 0; hp(0); ov.classList.add("heroes", "explode", "win");
+      A.theme("victory"); A.sfx("victory"); log(`「${st.boss.name}」的迷思被破解了！`);
+      T.push(setTimeout(end, 2500));
+    }
+    ov.addEventListener("click", skip);
+  }
+
+  /* ---------- 全域介面音效：每個按鈕都有聲音 ---------- */
+  function uiSound(el) {
+    if (el.closest("#dlg") || el.closest("#battle")) return null;
+    if (el.matches(".node")) return el.classList.contains("locked") ? "locked" : "node";
+    if (el.matches(".scard.locked")) return "locked";
+    if (el.matches("[data-close], .modal-close")) return "close";
+    if (el.matches("[data-boss]")) return "confirm";
+    if (el.matches("[data-done]")) return "confirm";
+    if (el.matches("#btn-sound")) return "toggle";
+    if (el.matches(".pick")) return "pick";
+    if (el.matches(".ui-link, .pv-group button, .b-replay")) return "tab";
+    if (el.matches(".btn-gold, .gate-cta")) return "confirm";
+    return "click";
+  }
+  function bindUiSounds() {
+    document.addEventListener("click", e => {
+      const el = e.target.closest("button, a, .node, .scard, [role=button]"); if (!el || el.disabled) return;
+      const s = uiSound(el); if (s) A.sfx(s);
+    }, true);
+    document.addEventListener("pointerover", e => {
+      if (e.pointerType !== "mouse") return;
+      const el = e.target.closest("button, a, .node, .scard"); if (!el || el.disabled || el.contains(e.relatedTarget)) return;
+      if (el.closest("#dlg") || el.closest("#battle")) return;
+      A.sfx("hover");
+    });
+    document.addEventListener("pointerdown", armAudioAny, { once: true });
+  }
+  function armAudioAny() { try { A.sfx("hover"); } catch (e) {} }
 
   /* ---------- 圖鑑 ---------- */
   function openCodex() {
@@ -507,15 +598,15 @@
       const d = e.target.closest("[data-done]"); if (d) { completeLesson(d.dataset.done, +d.dataset.xp, d.dataset.stat); return; }
       const b = e.target.closest("[data-boss]"); if (b) { defeatBoss(b.dataset.boss, +b.dataset.xp); return; }
       const rp = e.target.closest("[data-replay]"); if (rp) { const s = C.stations.find(x => x.id === rp.dataset.replay); playStory(storyFor(s.id, prog.bosses[s.id] ? "bossAfter" : "bossBefore"), s); return; }
-      if (e.target.closest("[data-close]")) { const m = e.target.closest(".modal"); m.hidden = true; A.sfx("click"); if (m.id === "modal-levelup") afterLevelUp(); return; }
-      if (e.target.classList.contains("modal")) { e.target.hidden = true; }
+      if (e.target.closest("[data-close]")) { const m = e.target.closest(".modal"); m.hidden = true; if (m.id === "modal-levelup") afterLevelUp(); return; }
+      if (e.target.classList.contains("modal")) { e.target.hidden = true; A.sfx("close"); }
     });
     document.addEventListener("keydown", e => { if (e.key === "Escape") $$(".modal").forEach(m => m.hidden = true); });
     document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id === "boss-code") $("[data-boss]").click(); });
-    $("#btn-codex").addEventListener("click", () => { A.sfx("click"); openCodex(); });
-    $("#btn-stations").addEventListener("click", () => { A.sfx("click"); $("#modal-list").hidden = false; });
-    $("#player-chip").addEventListener("click", () => { A.sfx("click"); $("#modal-status").hidden = false; });
-    $("#ui-char").addEventListener("click", () => { A.sfx("click"); $("#modal-status").hidden = false; });
+    $("#btn-codex").addEventListener("click", () => { openCodex(); });
+    $("#btn-stations").addEventListener("click", () => { A.sfx("open"); $("#modal-list").hidden = false; });
+    $("#player-chip").addEventListener("click", () => { $("#modal-status").hidden = false; });
+    $("#ui-char").addEventListener("click", () => { A.sfx("m-happy"); $("#modal-status").hidden = false; });
     $("#btn-teacher").addEventListener("click", () => location.href = "teacher.html");
     $("#btn-home").addEventListener("click", () => { $("#screen-hub").hidden = true; $("#screen-gate").hidden = false; });
     $("#btn-logout").addEventListener("click", () => {
@@ -570,7 +661,7 @@
   }
 
   /* ---------- 啟動 ---------- */
-  initGate(); bind();
+  initGate(); bind(); bindUiSounds();
   const urlMode = new URLSearchParams(location.search).get("mode");
   if (urlMode === "preview") {
     MODE = "preview"; prog = blankProgress();

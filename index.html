@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#0d1030">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700&family=Cinzel:wght@600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20261029g">
+<link rel="stylesheet" href="css/style.css?v=20261029h">
 </head>
 <body>
 
@@ -193,11 +193,26 @@
   <button class="dlg-skip" id="dlg-skip">略過對話 ▸▸</button>
 </div>
 
+<!-- ========== 魔王戰 ========== -->
+<div class="battle" id="battle" hidden>
+  <div class="bt-sky"></div>
+  <div class="bt-top"><span class="bt-tag">BOSS BATTLE</span><b id="bt-bossname"></b>
+    <div class="bt-hpbar"><i id="bt-hp"></i><span id="bt-hpnum">100%</span></div></div>
+  <div class="bt-field" id="bt-field">
+    <img id="bt-boss" class="bt-boss" alt="">
+    <div class="bt-heroes"><img id="bt-player" class="bt-player" alt=""><img id="bt-pet" class="bt-pet" alt=""></div>
+  </div>
+  <p class="bt-log" id="bt-log"></p>
+  <div class="bt-flash"></div>
+  <div class="bt-win"><p class="bt-victory">VICTORY!</p><p class="bt-sub">迷思已被破解・點擊繼續</p></div>
+  <p class="bt-skip">點擊畫面快轉 ▸▸</p>
+</div>
+
 <div class="toast" id="toast" hidden></div>
 
-<script src="js/courses.js?v=20261029g"></script>
-<script src="js/story.js?v=20261029g"></script>
-<script src="js/audio.js?v=20261029g"></script>
-<script src="js/app.js?v=20261029g"></script>
+<script src="js/courses.js?v=20261029h"></script>
+<script src="js/story.js?v=20261029h"></script>
+<script src="js/audio.js?v=20261029h"></script>
+<script src="js/app.js?v=20261029h"></script>
 </body>
 </html>
