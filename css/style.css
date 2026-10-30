@@ -472,3 +472,6 @@ body.mode-preview .toast{bottom:150px}
 .battle{overflow:clip}
 .bt-end{padding:0 18px;text-align:center}
 .bt-end .bt-sub{max-width:92vw}
+/* 沒有魔王的對話（開場、進入據點、進化）：人物置中 */
+.dlg.solo .dlg-stage{justify-content:center}
+.dlg.solo .dlg-side.right{display:none}

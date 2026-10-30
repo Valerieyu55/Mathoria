@@ -393,7 +393,7 @@
     const P = $("#dlg-player"), PET = $("#dlg-pet"), B = $("#dlg-boss");
     P.src = charImg(stage); PET.src = petImg(stage);
     const hasBoss = !!(st && lines.some(l => l.who === "boss"));
-    B.hidden = !hasBoss; if (hasBoss) { B.src = `assets/boss/boss_${st.id}.png`; B.onerror = () => { B.hidden = true; }; }
+    B.hidden = !hasBoss; box.classList.toggle("solo", !hasBoss);   /* 沒有魔王時，主角與寵物置中 */ if (hasBoss) { B.src = `assets/boss/boss_${st.id}.png`; B.onerror = () => { B.hidden = true; }; }
     const pet = C.pets.find(p => p.id === profile.pet) || C.pets[0];
     const names = { player: profile.name, pet: pet.name, boss: st ? st.boss.name : "", narrator: "學院之聲" };
     let i = -1, typing = null, full = "", bossShown = false;
