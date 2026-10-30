@@ -60,7 +60,7 @@ window.MATHORIA_CONFIG = {
       intro: "森林裡的每一棵樹都按比例生長。學會縮放的法則，才能看穿迷霧。",
       boss: { name: "比例迷霧獸", myth: "以為放大圖形就是每一邊都「加」一樣的長度；或把不對應的邊拿來相比。", hint: "相似是「乘」同一個比，不是「加」；對應邊要先找對。" },
       lessons: [
-        { id: "s1-1", title: "1-1 連比例", stat: "calc",  url: "https://valerieyu55.github.io/store_manager/", urlLabel: "手搖飲創業專案", task: "完成研發部與調飲實驗室任務，求出三連比。" },
+        { id: "s1-1", title: "1-1 連比例", stat: "calc",  url: "https://valerieyu55.github.io/store_manager/cup/", urlLabel: "手搖飲創業專案", task: "完成研發部與調飲實驗室任務，求出三連比。" },
         { id: "s1-2", title: "1-2 比例線段", stat: "shape", url: "https://valerieyu55.github.io/similar-tea-shop/", urlLabel: "比不比熟成紅茶", task: "在杯身設計室解鎖比例線段關卡。" },
         { id: "s1-3", title: "1-3 相似多邊形", stat: "shape", url: "https://valerieyu55.github.io/similar-tea-shop/", urlLabel: "比不比熟成紅茶", task: "在品牌部完成相似多邊形任務，並在財務室破解面積比＝相似比²。" },
         { id: "s1-4", title: "1-4 相似三角形的應用", stat: "apply", url: "https://valerieyu55.github.io/measure-quest/", urlLabel: "測量遠征", task: "跟著泰勒斯完成三大測量挑戰並匯出學習歷程報告。" }
