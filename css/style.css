@@ -475,3 +475,7 @@ body.mode-preview .toast{bottom:150px}
 /* 沒有魔王的對話（開場、進入據點、進化）：人物置中 */
 .dlg.solo .dlg-stage{justify-content:center}
 .dlg.solo .dlg-side.right{display:none}
+.bt-tier{margin-left:8px;padding:1px 10px;border-radius:99px;font-size:11px;letter-spacing:.08em}
+.bt-tier.t-basic{background:rgba(94,240,200,.15);color:#5ef0c8}
+.bt-tier.t-standard{background:rgba(122,184,255,.18);color:#9cc8ff}
+.bt-tier.t-challenge{background:rgba(255,120,90,.2);color:#ffb08a;box-shadow:0 0 10px rgba(255,120,90,.4)}

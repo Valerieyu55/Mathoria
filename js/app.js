@@ -456,19 +456,31 @@
 
 
   /* ---------- 魔王戰：答題戰鬥 ---------- */
-  const QB = window.MATHORIA_QUESTIONS || { battle: { hits: 6, finalHits: 10, hearts: 3, time: 60 } };
+  const QB = window.MATHORIA_QUESTIONS || { battle: { hits: 6, finalHits: 10, hearts: 3, time: { basic: 45, standard: 60, challenge: 90 } }, tierName: {} };
   let inBattle = false;
   const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-  function questionPool(st) {
-    if (!st.isFinal) return shuffle(QB[st.id] || []);
-    const mix = []; C.stations.filter(s => !s.isFinal).forEach(s => mix.push(...shuffle(QB[s.id] || []).slice(0, 2)));
-    return shuffle((QB.final || []).concat(mix));
+  const TIERS = ["basic", "standard", "challenge"];
+  /* 題池：一般據點＝本站該級題目＋亂數題；終焉試煉＝會考題＋各站題目 */
+  function tierPool(st, tier) {
+    const own = QB[st.id] || {}, others = C.stations.filter(s => !s.isFinal).map(s => QB[s.id] || {});
+    const items = [];
+    const add = (set, t) => { (set[t] || []).forEach(q => items.push({ q })); (set.gen || []).filter(g => g.tier === t).forEach(g => items.push({ gen: g })); };
+    if (!st.isFinal) add(own, tier);
+    else if (tier === "basic") others.forEach(o => add(o, "standard"));
+    else if (tier === "standard") { add(own, "standard"); others.forEach(o => add(o, "standard")); }
+    else { add(own, "challenge"); add(own, "challenge"); others.forEach(o => add(o, "challenge")); }   /* 會考題權重加倍 */
+    return items;
+  }
+  function makeQuestion(item) {
+    let q = item.gen ? item.gen.make() : item.q;
+    const order = shuffle(q.o.map((_, i) => i));       /* 打亂選項 */
+    return { q: q.q, o: order.map(i => q.o[i]), a: order.indexOf(q.a), ex: q.ex };
   }
   function battle(st, done) {
     const ov = $("#battle"), stage = stageOf(levelInfo(prog.xp).lv).id, cfg = QB.battle;
     const pet = C.pets.find(p => p.id === profile.pet) || C.pets[0];
     const need = st.isFinal ? cfg.finalHits : cfg.hits;
-    let pool = questionPool(st), qi = 0, hits = 0, hearts = cfg.hearts, combo = 0, right = 0, asked = 0, locked = true, ended = false, timer = null, T = [];
+    const used = new Set(); let curTier = "basic", hits = 0, hearts = cfg.hearts, combo = 0, right = 0, asked = 0, locked = true, ended = false, timer = null, T = [];
     $("#bt-boss").src = `assets/boss/boss_${st.id}.png`; $("#bt-player").src = charImg(stage); $("#bt-pet").src = petImg(stage);
     $("#bt-bossname").textContent = st.boss.name;
     const at = (ms, fn) => T.push(setTimeout(() => { if (!ended) fn(); }, ms));
@@ -496,19 +508,23 @@
     document.addEventListener("keydown", onKey);
 
     function ask() {
-      if (qi >= pool.length) { pool = questionPool(st); qi = 0; }
-      const q = pool[qi++]; asked++;
-      const order = shuffle([0, 1, 2, 3]);
-      $("#bt-qnum").textContent = `第 ${asked} 題`;
+      const frac = hits / need, tier = frac < 1 / 3 ? "basic" : frac < 2 / 3 ? "standard" : "challenge";
+      let pool = tierPool(st, tier).filter(it => it.gen || !used.has(it.q));
+      if (!pool.length) { tierPool(st, tier).forEach(it => used.delete(it.q)); pool = tierPool(st, tier); }
+      if (!pool.length) pool = TIERS.flatMap(t => tierPool(st, t));
+      const item = pool[Math.floor(Math.random() * pool.length)]; if (item.q) used.add(item.q);
+      const q = makeQuestion(item); asked++; curTier = tier;
+      $("#bt-q")._q = q;   /* 自動化測試用 */
+      $("#bt-qnum").innerHTML = `第 ${asked} 題 <span class="bt-tier t-${tier}">${(QB.tierName || {})[tier] || ""}</span>`;
       $("#bt-qtext").textContent = q.q;
-      $("#bt-opts").innerHTML = order.map((k, i) => `<button class="bt-opt" data-k="${k}"><b>${"ABCD"[i]}</b><span>${q.o[k]}</span></button>`).join("");
+      $("#bt-opts").innerHTML = q.o.map((txt, i) => `<button class="bt-opt" data-k="${i}"><b>${"ABCD"[i]}</b><span>${txt}</span></button>`).join("");
       $("#bt-q").hidden = false; $("#bt-q").classList.remove("in"); void $("#bt-q").offsetWidth; $("#bt-q").classList.add("in");
       log(""); locked = false;
       $$("#bt-opts .bt-opt").forEach(b => b.addEventListener("click", () => answer(q, +b.dataset.k, b)));
       startTimer(q);
     }
     function startTimer(q) {
-      clearInterval(timer); const bar = $("#bt-time"), total = cfg.time * 1000, t0 = Date.now(); let warned = false;
+      clearInterval(timer); const bar = $("#bt-time"), total = (typeof cfg.time === "number" ? cfg.time : cfg.time[curTier] || 60) * 1000, t0 = Date.now(); let warned = false;
       bar.style.width = "100%"; bar.classList.remove("low");
       timer = setInterval(() => {
         const left = total - (Date.now() - t0), pct = Math.max(0, left / total * 100);
