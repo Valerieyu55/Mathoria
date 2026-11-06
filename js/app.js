@@ -199,6 +199,17 @@
     updateSoundBtn();
     if (MODE !== "preview" && !seen("opening")) setTimeout(() => playStory(S.opening, null, () => markSeen("opening")), 500);
     if (API && isReal()) { apiPost({ action: "login" }).catch(() => {}); flushOutbox().then(syncFromCloud); }
+    setTimeout(applyPendingDone, 700);
+  }
+  /* 從學院內建課程頁回來（index.html?done=s2-1）：打開該據點並領取任務 XP */
+  function applyPendingDone() {
+    let id = null; try { id = sessionStorage.getItem("mathoria.pendingDone"); sessionStorage.removeItem("mathoria.pendingDone"); } catch (e) {}
+    if (!id) return;
+    const st = C.stations.find(s => s.lessons.some(l => l.id === id)); if (!st) return;
+    const l = st.lessons.find(x => x.id === id);
+    renderStation(st.id);
+    if (!prog.done[id]) setTimeout(() => completeLesson(id, C.xp.lesson, l.stat, true), 400);
+    else toast(`「${l.title}」已經完成過了`);
   }
   function renderAll() { renderHUD(); renderMap(); renderList(); renderQuest(); if (typeof renderModeBar === "function" && MODE !== "student") renderModeBar(); }
 
@@ -276,7 +287,8 @@
     const lessonHTML = (l, kind) => {
       const done = !!prog.done[l.id];
       const xp = kind === "project" ? C.xp.project : C.xp.lesson;
-      const link = l.url ? `<a class="btn-line" href="${l.url}" target="_blank" rel="noopener">前往探索 ↗</a>` : "";
+      const inner = l.url && !/^https?:/.test(l.url);
+      const link = l.url ? (inner ? `<a class="btn-line" href="${l.url}">進入課程 ✦</a>` : `<a class="btn-line" href="${l.url}" target="_blank" rel="noopener">前往探索 ↗</a>`) : "";
       const act = done ? `<span class="done-mark">✓ 已完成 +${xp} XP</span>` : `<button class="btn-gold" data-done="${l.id}" data-xp="${xp}" data-stat="${l.stat}">回報完成</button>`;
       return `<div class="lesson ${done ? "done" : ""}"><div><b>${l.title}<span class="tag">${stat(l.stat)}</span></b><p>${l.task}${l.urlLabel ? `　｜ 課程：${l.urlLabel}` : ""}</p></div><div class="acts">${link}${act}</div></div>`;
     };
@@ -311,9 +323,9 @@
     A.sfx("open");
   }
 
-  function completeLesson(id, xp, stat) {
+  function completeLesson(id, xp, stat, fromLesson) {
     if (prog.done[id]) return;
-    if (isReal() && !confirm("確定你已經完成這個任務了嗎？\n誠實回報，才是真正的守護者精神。")) return;
+    if (isReal() && !fromLesson && !confirm("確定你已經完成這個任務了嗎？\n誠實回報，才是真正的守護者精神。")) return;
     prog.done[id] = true; prog.log.push({ t: Date.now(), id, xp });
     if (stat && prog.stats[stat] !== undefined) prog.stats[stat] += 1;
     gainXP(xp, "任務完成");
@@ -753,6 +765,11 @@
 
   /* ---------- 啟動 ---------- */
   initGate(); bind(); bindUiSounds();
+  const doneParam = new URLSearchParams(location.search).get("done");
+  if (doneParam && /^s\d-\d$/.test(doneParam)) {
+    try { sessionStorage.setItem("mathoria.pendingDone", doneParam); } catch (e) {}
+    history.replaceState(null, "", location.pathname);
+  }
   const urlMode = new URLSearchParams(location.search).get("mode");
   if (urlMode === "preview") {
     MODE = "preview"; prog = blankProgress();

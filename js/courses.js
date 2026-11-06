@@ -72,12 +72,12 @@ window.MATHORIA_CONFIG = {
       num: 2, term: "九上", chapter: "第 2 章 圓",
       name: "圓環聖殿", en: "Circle Sanctuary",
       badge: "badge_circle.png",
-      pos: { x: 15, y: 60, fogW: 30, fogH: 34 },  /* 地圖位置（%）與迷霧大小 */sealed: true,
+      pos: { x: 15, y: 60, fogW: 30, fogH: 34 },  /* 地圖位置（%）與迷霧大小 */sealed: false,
       intro: "白色的環形神殿，每一道弧都藏著角度的秘密。",
       boss: { name: "弧影巨龍", myth: "把圓周角和圓心角當成一樣大，或忘了它們必須對著同一條弧。", hint: "同弧的圓周角是圓心角的一半。" },
       lessons: [
-        { id: "s2-1", title: "2-1 點、直線與圓的關係", stat: "shape", task: "判斷點與圓、直線與圓、兩圓的位置關係。" },
-        { id: "s2-2", title: "2-2 圓心角、圓周角與弦切角", stat: "reason", task: "運用圓周角定理解題。" }
+        { id: "s2-1", title: "2-1 點、直線與圓的關係", stat: "shape", url: "lessons/index.html?id=s2-1", urlLabel: "學院內建課程", task: "用距離與半徑判斷點、直線與圓的位置關係，並求弦心距與切線長。" },
+        { id: "s2-2", title: "2-2 圓心角、圓周角與弦切角", url: "lessons/index.html?id=s2-2", urlLabel: "學院內建課程", stat: "reason", task: "用圓心角、圓周角與弦切角的關係求角度，並運用圓內接四邊形對角互補。" }
       ]
     },
     {
@@ -85,11 +85,11 @@ window.MATHORIA_CONFIG = {
       num: 3, term: "九上", chapter: "第 3 章 推理證明（3-1）",
       name: "真理審判庭", en: "Truth Tribunal",
       badge: "badge_truth.png",
-      pos: { x: 52, y: 66, fogW: 22, fogH: 22 },  /* 地圖位置（%）與迷霧大小 */sealed: true,
+      pos: { x: 52, y: 66, fogW: 22, fogH: 22 },  /* 地圖位置（%）與迷霧大小 */sealed: false,
       intro: "在這裡，每一句話都要有理由。沒有證明的主張，將被天平判定無效。",
       boss: { name: "謬誤審判者", myth: "證明跳步：把想證的結論當成已知來用，或漏掉關鍵條件。", hint: "每一步都要寫出「因為…所以…」，並標明用的是哪一個性質。" },
       lessons: [
-        { id: "s3-1", title: "3-1 幾何推理與證明", stat: "proof", task: "完成一題完整的幾何證明，包含已知、求證、證明。" }
+        { id: "s3-1", title: "3-1 幾何推理與證明", url: "lessons/index.html?id=s3-1", urlLabel: "學院內建課程", stat: "proof", task: "寫出一題完整的幾何證明（已知、求證、證明），並完成一題代數推理。" }
       ]
     },
     {
@@ -97,11 +97,11 @@ window.MATHORIA_CONFIG = {
       num: 4, term: "九上", chapter: "第 3 章 三角形的心（3-2）",
       name: "三心神殿", en: "Three-Heart Shrine",
       badge: "badge_threecenter.png",
-      pos: { x: 50, y: 86, fogW: 20, fogH: 16 },  /* 地圖位置（%）與迷霧大小 */sealed: true,
+      pos: { x: 50, y: 86, fogW: 20, fogH: 16 },  /* 地圖位置（%）與迷霧大小 */sealed: false,
       intro: "三顆光核在三角形中閃爍：外心、內心、重心。認錯一顆，神殿就會變形。",
       boss: { name: "三心擬態獸", myth: "外心、內心、重心互相冒充：把重心當成到三頂點等距、把內心當成到三頂點等距。", hint: "外心到三頂點等距；內心到三邊等距；重心把中線分成 2：1。" },
       lessons: [
-        { id: "s4-1", title: "3-2 三角形的外心、內心、重心", stat: "reason", task: "分辨三心的作圖與性質，完成重心 2：1 的計算。" }
+        { id: "s4-1", title: "3-2 三角形的外心、內心、重心", url: "lessons/index.html?id=s4-1", urlLabel: "學院內建課程", stat: "reason", task: "拖曳三角形觀察三心位置，並完成外心、內心、重心的計算。" }
       ]
     },
     {
@@ -113,7 +113,7 @@ window.MATHORIA_CONFIG = {
       boss: { name: "頂點騙徒", myth: "y = a(x − h)² + k 的 h 正負號搞反，把頂點放錯位置。", hint: "x − h 中的 h 才是頂點橫坐標；y = (x + 2)² 的頂點在 x = −2。" },
       lessons: [
         { id: "s5-1", title: "1-1 二次函數的圖形", stat: "shape", url: "https://valerieyu55.github.io/MATH.COURT/", urlLabel: "拋物線・看見數學的軌跡", task: "操作參數 a、h、k，觀察開口與頂點的變化並記錄。" },
-        { id: "s5-2", title: "1-2 二次函數的最大值與最小值", stat: "apply", task: "配方法求頂點，解一題最大利潤或最大面積的應用題。" }
+        { id: "s5-2", title: "1-2 二次函數的最大值與最小值", url: "lessons/index.html?id=s5-2", urlLabel: "學院內建課程", stat: "apply", task: "從頂點式讀出最大值或最小值，並解一題最大面積或最大利潤的應用題。" }
       ]
     },
     {
@@ -137,7 +137,7 @@ window.MATHORIA_CONFIG = {
       boss: { name: "摺紙幻術師", myth: "把摺不回去的展開圖當成正方體展開圖；或把歪斜線誤判為平行。", hint: "試著在腦中真的把它摺起來；兩直線不相交又不平行，就是歪斜。" },
       lessons: [
         { id: "s7-1", title: "3-1 空間中的線、平面與形體", stat: "shape", url: "https://valerieyu55.github.io/3-1-geometry/index.html", urlLabel: "從平面到立體", task: "旋轉 3D 模型，判斷線與面的平行、垂直與歪斜關係。" },
-        { id: "s7-2", title: "3-2 柱體、錐體與展開圖", stat: "apply", task: "畫出一個柱體的展開圖，並計算表面積與體積。" }
+        { id: "s7-2", title: "3-2 柱體、錐體與展開圖", url: "lessons/index.html?id=s7-2", urlLabel: "學院內建課程", stat: "apply", task: "畫出柱體與錐體的展開圖，計算表面積與直角柱的體積。" }
       ]
     },
     {
@@ -149,8 +149,8 @@ window.MATHORIA_CONFIG = {
       intro: "所有魔王的碎片在這裡聚集。只有集齊七枚徽章的守護者，才能推開金色之門。",
       boss: { name: "悖論之王", myth: "跨單元綜合題：把相似、圓、函數、機率與空間混在一起設下陷阱。", hint: "先辨認題目屬於哪一章，再把學過的法則一個一個叫出來。" },
       lessons: [
-        { id: "s8-1", title: "會考模擬戰 I", stat: "calc",  task: "完成一份會考模擬題並訂正。" },
-        { id: "s8-2", title: "會考模擬戰 II", stat: "reason", task: "完成第二份會考模擬題並訂正。" }
+        { id: "s8-1", title: "會考模擬戰 I", url: "lessons/index.html?id=s8-1", urlLabel: "學院內建課程", stat: "calc",  task: "完成九上幾何的會考模擬題並訂正。" },
+        { id: "s8-2", title: "會考模擬戰 II", url: "lessons/index.html?id=s8-2", urlLabel: "學院內建課程", stat: "reason", task: "完成九下與跨單元的會考模擬題並訂正。" }
       ]
     }
   ]
