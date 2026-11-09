@@ -479,3 +479,15 @@ body.mode-preview .toast{bottom:150px}
 .bt-tier.t-basic{background:rgba(94,240,200,.15);color:#5ef0c8}
 .bt-tier.t-standard{background:rgba(122,184,255,.18);color:#9cc8ff}
 .bt-tier.t-challenge{background:rgba(255,120,90,.2);color:#ffb08a;box-shadow:0 0 10px rgba(255,120,90,.4)}
+
+/* 教師預覽：右上角可收合面板，不遮地圖據點 */
+.preview-bar{left:auto;right:16px;bottom:auto;top:76px;transform:none;flex-direction:column;align-items:stretch;gap:6px;padding:6px;border-radius:16px;max-width:none;width:auto}
+.preview-bar .pv-toggle{background:none;border:0;color:#f0d6ff;font-family:var(--serif);font-weight:700;letter-spacing:.1em;font-size:13px;padding:6px 10px;border-radius:12px;cursor:pointer;white-space:nowrap}
+.preview-bar .pv-toggle:hover{background:rgba(255,255,255,.08)}
+.preview-bar .pv-caret{display:inline-block;transition:transform .2s}
+.preview-bar:not(.collapsed) .pv-caret{transform:rotate(180deg)}
+.preview-bar .pv-panel{display:flex;flex-direction:column;gap:4px;padding:2px 4px 6px}
+.preview-bar.collapsed .pv-panel{display:none}
+.preview-bar .pv-label{margin:4px 0 0;font-size:11px;color:var(--muted);letter-spacing:.1em}
+.preview-bar .pv-group{flex-wrap:wrap}
+@media (max-width:640px){.preview-bar{top:64px;right:8px;bottom:auto}.preview-bar .pv-panel{max-width:72vw}}

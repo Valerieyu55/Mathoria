@@ -23,7 +23,12 @@
     prog.stats = Object.assign({ calc: 0, shape: 0, reason: 0, proof: 0, apply: 0 }, prog.stats || {});
     prog.log = prog.log || [];
   }
-  function saveProgress() { if (isReal()) localStorage.setItem(keyProgress(profile), JSON.stringify(prog)); }
+  function saveProgress() { if (isReal()) localStorage.setItem(keyProgress(profile), JSON.stringify(prog)); else snapSession(); }
+  /* 訪客／教師預覽：把目前狀態暫存在這個分頁（sessionStorage），從課程頁回來時還原到學院地圖 */
+  function snapSession() {
+    try { if (MODE !== "student" && profile && prog) sessionStorage.setItem("mathoria.session", JSON.stringify({ mode: MODE, profile, prog })); } catch (e) {}
+  }
+  function clearSession() { try { sessionStorage.removeItem("mathoria.session"); } catch (e) {} }
 
   /* ---------- 等級／階段 ---------- */
   function levelInfo(xp) {
@@ -203,7 +208,9 @@
   }
   /* 從學院內建課程頁回來（index.html?done=s2-1）：打開該據點並領取任務 XP */
   function applyPendingDone() {
-    let id = null; try { id = sessionStorage.getItem("mathoria.pendingDone"); sessionStorage.removeItem("mathoria.pendingDone"); } catch (e) {}
+    let id = null, from = null;
+    try { id = sessionStorage.getItem("mathoria.pendingDone"); from = sessionStorage.getItem("mathoria.returnFrom"); sessionStorage.removeItem("mathoria.pendingDone"); sessionStorage.removeItem("mathoria.returnFrom"); } catch (e) {}
+    if (!id && from) { const st0 = C.stations.find(s => s.lessons.some(l => l.id === from)); if (st0) renderStation(st0.id); return; }
     if (!id) return;
     const st = C.stations.find(s => s.lessons.some(l => l.id === id)); if (!st) return;
     const l = st.lessons.find(x => x.id === id);
@@ -616,6 +623,8 @@
     if (el.matches(".btn-gold, .gate-cta")) return "confirm";
     return "click";
   }
+  /* 進入學院內建課程前，先記下訪客／預覽的狀態 */
+  document.addEventListener("click", e => { if (e.target.closest('a[href^="lessons/"]')) snapSession(); }, true);
   function bindUiSounds() {
     document.addEventListener("click", e => {
       const el = e.target.closest("button, a, .node, .scard, [role=button]"); if (!el || el.disabled) return;
@@ -714,10 +723,11 @@
     $("#btn-home").addEventListener("click", () => { $("#screen-hub").hidden = true; $("#screen-gate").hidden = false; });
     $("#btn-logout").addEventListener("click", () => {
       if (MODE === "preview") { location.href = "teacher.html"; return; }
-      if (MODE === "guest") { MODE = "student"; prog = null; profile = null; }
+      if (MODE === "guest") { MODE = "student"; prog = null; profile = null; clearSession(); }
       $("#screen-hub").hidden = true; $("#screen-gate").hidden = false; renderModeBar();
     });
-    $("#mode-cta").addEventListener("click", () => { MODE = "student"; prog = null; $("#screen-hub").hidden = true; $("#screen-gate").hidden = false; renderModeBar(); $("#btn-start").click(); });
+    $("#mode-cta").addEventListener("click", () => { MODE = "student"; prog = null; clearSession(); $("#screen-hub").hidden = true; $("#screen-gate").hidden = false; renderModeBar(); $("#btn-start").click(); });
+    $("#pv-toggle").addEventListener("click", () => { const pv = $("#preview-bar"); const c = pv.classList.toggle("collapsed"); $("#pv-toggle").setAttribute("aria-expanded", String(!c)); });
     $$("#preview-bar [data-pv]").forEach(b => b.addEventListener("click", () => applyPreview(b.dataset.pv)));
     $$("#preview-bar [data-pstage]").forEach(b => b.addEventListener("click", () => applyPreviewStage(+b.dataset.pstage)));
     $("#pv-opening").addEventListener("click", () => playStory(S.opening, null));
@@ -765,18 +775,22 @@
 
   /* ---------- 啟動 ---------- */
   initGate(); bind(); bindUiSounds();
-  const doneParam = new URLSearchParams(location.search).get("done");
-  if (doneParam && /^s\d-\d$/.test(doneParam)) {
-    try { sessionStorage.setItem("mathoria.pendingDone", doneParam); } catch (e) {}
-    history.replaceState(null, "", location.pathname);
-  }
-  const urlMode = new URLSearchParams(location.search).get("mode");
-  if (urlMode === "preview") {
+  const qs = new URLSearchParams(location.search);
+  const doneParam = qs.get("done"), fromParam = qs.get("from");
+  if (doneParam && /^s\d-\d$/.test(doneParam)) { try { sessionStorage.setItem("mathoria.pendingDone", doneParam); } catch (e) {} }
+  if (fromParam && /^s\d-\d$/.test(fromParam)) { try { sessionStorage.setItem("mathoria.returnFrom", fromParam); } catch (e) {} }
+  if (doneParam || fromParam) history.replaceState(null, "", location.pathname);
+  let restored = null; try { restored = JSON.parse(sessionStorage.getItem("mathoria.session")); } catch (e) {}
+  const urlMode = qs.get("mode");
+  if (urlMode !== "preview" && restored && restored.profile && restored.prog && (restored.mode === "guest" || restored.mode === "preview")) {
+    MODE = restored.mode; profile = restored.profile; prog = restored.prog;
+    $("#screen-gate").hidden = true; enterHub(); renderModeBar();
+  } else if (urlMode === "preview") {
     MODE = "preview"; prog = blankProgress();
     profile = { preview: true, cls: "預覽", seat: "0", name: "教師預覽", gender: "female", pet: "crystal_fox" };
     $("#screen-gate").hidden = true; enterHub(); renderModeBar();
     applyPreview(new URLSearchParams(location.search).get("state") || "new");
   } else renderModeBar();
   const saved = loadProfile();
-  if (urlMode !== "preview" && saved && saved.cls && saved.seat && saved.name) { profile = saved; enterHub(); }
+  if (MODE === "student" && urlMode !== "preview" && saved && saved.cls && saved.seat && saved.name) { profile = saved; enterHub(); }
 })();

@@ -14,19 +14,20 @@
 
   /* ---------- 學生資料（沿用學院登入；沒有就用預設角色） ---------- */
   let profile = null;
-  try { profile = JSON.parse(localStorage.getItem("mathoria.profile")); } catch (e) {}
+  try { const ses = JSON.parse(sessionStorage.getItem("mathoria.session")); profile = ses && ses.profile ? ses.profile : JSON.parse(localStorage.getItem("mathoria.profile")); } catch (e) {}
   const P = Object.assign({ name: "冒險者", gender: "female", pet: "crystal_fox" }, profile || {});
   const pet = (C.pets || []).find(p => p.id === P.pet) || { id: "crystal_fox", name: "晶狐" };
   const voice = (window.MATHORIA_STORY && window.MATHORIA_STORY.petVoice && window.MATHORIA_STORY.petVoice[pet.id]) || { tic: "" };
 
   const id = new URLSearchParams(location.search).get("id") || "";
   if (!/^s\d-\d$/.test(id)) { fail("找不到這堂課。"); return; }
+  $("#ls-back").href = `../index.html?from=${encodeURIComponent(id)}`;   /* 回到學院地圖，並打開本課所在的據點 */
   const station = C.stations.find(s => s.lessons.some(l => l.id === id));
   const lessonCfg = station && station.lessons.find(l => l.id === id);
   document.body.dataset.station = station ? station.id : "";
 
   const sc = document.createElement("script");
-  sc.src = `data/${id}.js?v=20261107a`;
+  sc.src = `data/${id}.js?v=20261109a`;
   sc.onload = () => { try { render(window.MATHORIA_LESSON); } catch (e) { console.error(e); fail("課程內容讀取失敗。"); } };
   sc.onerror = () => fail("這堂課還在準備中。");
   document.head.appendChild(sc);

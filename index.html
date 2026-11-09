@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#0d1030">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700&family=Cinzel:wght@600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20261107a">
+<link rel="stylesheet" href="css/style.css?v=20261109a">
 </head>
 <body>
 
@@ -106,11 +106,16 @@
     <span>訪客模式・進度不會儲存</span>
     <button class="btn-gold" id="mode-cta">建立正式角色</button>
   </div>
-  <div class="preview-bar" id="preview-bar" hidden>
-    <b>教師預覽</b>
-    <span class="pv-group"><button data-pv="new">全新</button><button data-pv="mid">進行中</button><button data-pv="all">全數破關</button></span>
-    <span class="pv-group"><button data-pstage="1">Lv.1</button><button data-pstage="2">Lv.6</button><button data-pstage="3">Lv.16</button><button data-pstage="4">Lv.26</button></span>
-    <span class="pv-group"><button id="pv-gender">女生造型</button><button id="pv-opening">▶ 開場劇情</button><button id="pv-pet">寵物</button></span>
+  <div class="preview-bar collapsed" id="preview-bar" hidden>
+    <button class="pv-toggle" id="pv-toggle" aria-expanded="false">🎓 教師預覽 <span class="pv-caret">▾</span></button>
+    <div class="pv-panel">
+      <p class="pv-label">進度狀態</p>
+      <span class="pv-group"><button data-pv="new">全新</button><button data-pv="mid">進行中</button><button data-pv="all">全數破關</button></span>
+      <p class="pv-label">角色等級</p>
+      <span class="pv-group"><button data-pstage="1">Lv.1</button><button data-pstage="2">Lv.6</button><button data-pstage="3">Lv.16</button><button data-pstage="4">Lv.26</button></span>
+      <p class="pv-label">其他</p>
+      <span class="pv-group"><button id="pv-gender">女生造型</button><button id="pv-opening">▶ 開場劇情</button><button id="pv-pet">寵物</button></span>
+    </div>
   </div>
   <p class="ui-hint" id="ui-hint">拖曳可移動地圖 ・ 點擊據點進入</p>
 </section>
@@ -227,10 +232,10 @@
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="js/courses.js?v=20261107a"></script>
-<script src="js/story.js?v=20261107a"></script>
-<script src="js/questions.js?v=20261107a"></script>
-<script src="js/audio.js?v=20261107a"></script>
-<script src="js/app.js?v=20261107a"></script>
+<script src="js/courses.js?v=20261109a"></script>
+<script src="js/story.js?v=20261109a"></script>
+<script src="js/questions.js?v=20261109a"></script>
+<script src="js/audio.js?v=20261109a"></script>
+<script src="js/app.js?v=20261109a"></script>
 </body>
 </html>
