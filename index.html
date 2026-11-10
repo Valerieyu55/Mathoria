@@ -8,7 +8,10 @@
 <meta name="theme-color" content="#0d1030">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700&family=Cinzel:wght@600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20261109a">
+<link rel="preload" as="image" href="assets/bg/hero.webp" media="(min-width: 701px)" fetchpriority="high">
+<link rel="preload" as="image" href="assets/bg/hero-m.webp" media="(max-width: 700px)" fetchpriority="high">
+<link rel="preload" as="image" href="assets/bg/logo.webp">
+<link rel="stylesheet" href="css/style.css?v=20261110a">
 </head>
 <body>
 
@@ -49,8 +52,8 @@
         </div>
         <p class="field-label">選擇你的造型</p>
         <div class="pick-row" id="pick-gender">
-          <button type="button" class="pick is-on" data-v="male"><img src="assets/char/male_stage_1.png" alt=""><span>男生造型</span></button>
-          <button type="button" class="pick" data-v="female"><img src="assets/char/female_stage_1.png" alt=""><span>女生造型</span></button>
+          <button type="button" class="pick is-on" data-v="male"><img src="assets/char/male_stage_1.webp" alt=""><span>男生造型</span></button>
+          <button type="button" class="pick" data-v="female"><img src="assets/char/female_stage_1.webp" alt=""><span>女生造型</span></button>
         </div>
         <p class="field-label">選擇專屬寵物夥伴</p>
         <div class="pick-row pets" id="pick-pet"></div>
@@ -66,7 +69,7 @@
 <section id="screen-hub" class="screen hub" hidden>
   <div class="stage-viewport" id="viewport">
     <div class="stage" id="stage">
-      <img class="stage-bg" src="assets/bg/worldmap.jpg" alt="MATHORIA 世界地圖" draggable="false">
+      <img class="stage-bg" src="assets/bg/worldmap.webp" decoding="async" style="background:url(data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA0JCgsKCA0LCgsODg0PEyAVExISEyccHhcgLikxMC4pLSwzOko+MzZGNywtQFdBRkxOUlNSMj5aYVpQYEpRUk//2wBDAQ4ODhMREyYVFSZPNS01T09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0//wAARCAASACADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDW1Ke5SeSBB9nUnht+7DH37H+lOtZ44lTzlSVNvG5PmPoalju2UiF45I2Ck7HU7uCB+P1zVS4EX20+TICwf97hc7PofXFVK6964kk9DTWRIy3zOd/Cq65AHccf54qSzvWgkbzvLQ7sBQRj6ZH41QMoju3beZDjcgP8XHTOeKZFKss6rDbr5pfdsyRk9T8v504tzi2N2i7G6irJZr5gD8EfMM8Yri9YJW2t3BIY4yw6niiim/hZL3NHQyW1K/LEkqeCe1dQeJQ44YhcnuaKKmPwldT/2Q==) center/cover" alt="MATHORIA 世界地圖" draggable="false">
       <div class="stage-fog" id="stage-fog"></div>
       <div id="map-nodes"></div>
     </div>
@@ -74,7 +77,7 @@
 
   <!-- 漂浮 UI -->
   <button class="ui-title" id="btn-home" title="回到入口">
-    <img class="ui-logo" src="assets/bg/logo.png" alt="MATHORIA 數域魔法學院" draggable="false">
+    <img class="ui-logo" src="assets/bg/logo.webp" alt="MATHORIA 數域魔法學院" draggable="false">
   </button>
 
   <nav class="ui-nav">
@@ -232,10 +235,10 @@
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="js/courses.js?v=20261109a"></script>
-<script src="js/story.js?v=20261109a"></script>
-<script src="js/questions.js?v=20261109a"></script>
-<script src="js/audio.js?v=20261109a"></script>
-<script src="js/app.js?v=20261109a"></script>
+<script src="js/courses.js?v=20261110a"></script>
+<script src="js/story.js?v=20261110a"></script>
+<script src="js/questions.js?v=20261110a"></script>
+<script src="js/audio.js?v=20261110a"></script>
+<script src="js/app.js?v=20261110a"></script>
 </body>
 </html>

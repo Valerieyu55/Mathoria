@@ -27,7 +27,7 @@
   document.body.dataset.station = station ? station.id : "";
 
   const sc = document.createElement("script");
-  sc.src = `data/${id}.js?v=20261109a`;
+  sc.src = `data/${id}.js?v=20261110a`;
   sc.onload = () => { try { render(window.MATHORIA_LESSON); } catch (e) { console.error(e); fail("課程內容讀取失敗。"); } };
   sc.onerror = () => fail("這堂課還在準備中。");
   document.head.appendChild(sc);
@@ -41,9 +41,9 @@
     try { window.renderMathInElement(el, { delimiters: [{ left: "$$", right: "$$", display: true }, { left: "$", right: "$", display: false }], throwOnError: false }); } catch (e) {}
   }
   const who = {
-    player: () => ({ img: `../assets/portrait/${P.gender}_portrait_1.png`, name: P.name, cls: "player" }),
-    pet: () => ({ img: `../assets/pet/${pet.id}_stage_1_token.png`, name: pet.name, cls: "pet" }),
-    boss: () => ({ img: `../assets/boss/boss_${station ? station.id : "final"}.png`, name: station ? station.boss.name : "魔王", cls: "boss" }),
+    player: () => ({ img: `../assets/portrait/${P.gender}_portrait_1.webp`, name: P.name, cls: "player" }),
+    pet: () => ({ img: `../assets/pet/${pet.id}_stage_1_token.webp`, name: pet.name, cls: "pet" }),
+    boss: () => ({ img: `../assets/boss/boss_${station ? station.id : "final"}.webp`, name: station ? station.boss.name : "魔王", cls: "boss" }),
     narrator: () => ({ img: "", name: "學院之聲", cls: "narrator" }),
     teacher: () => ({ img: "", name: "余老師", cls: "narrator" })
   };
@@ -52,7 +52,7 @@
   let practiceTotal = 0, practiceDone = 0, practiceRight = 0;
   function render(L) {
     document.title = `${L.title}｜MATHORIA 課程`;
-    $("#ls-crumb").innerHTML = station ? `<img src="../assets/badge/badge_${station.id}.png" alt=""><span>第 ${esc(station.num)} 站・${esc(station.name)}</span>` : "";
+    $("#ls-crumb").innerHTML = station ? `<img src="../assets/badge/badge_${station.id}.webp" alt=""><span>第 ${esc(station.num)} 站・${esc(station.name)}</span>` : "";
     const main = $("#ls-main"); main.innerHTML = "";
     main.appendChild(hero(L));
     const toc = [];
@@ -79,7 +79,7 @@
 
   function hero(L) {
     const d = document.createElement("section"); d.className = "ls-hero";
-    const boss = station ? `../assets/boss/boss_${station.id}.png` : "";
+    const boss = station ? `../assets/boss/boss_${station.id}.webp` : "";
     d.innerHTML = `
       <div class="ls-hero-art">${boss ? `<img src="${boss}" alt="">` : ""}</div>
       <div class="ls-hero-text">

@@ -42,10 +42,10 @@
     return s;
   }
   function nextStage(lv) { return C.stages.find(st => st.min > lv) || null; }
-  const charImg = (stage) => `assets/char/${profile.gender}_stage_${stage}.png`;
-  const faceImg = (n = 1) => `assets/face/${profile.gender}_expression_0${n}.png`;
+  const charImg = (stage) => `assets/char/${profile.gender}_stage_${stage}.webp`;
+  const faceImg = (n = 1) => `assets/face/${profile.gender}_expression_0${n}.webp`;
   const petOf = () => C.pets.find(x => x.id === profile.pet) || C.pets[0];
-  const petImg = (stage, p = petOf()) => p.hd ? `assets/pet/${p.file}_stage_${stage}.png` : `assets/pet/${p.file}_stage_${stage}_token.png`;
+  const petImg = (stage, p = petOf()) => p.hd ? `assets/pet/${p.file}_stage_${stage}.webp` : `assets/pet/${p.file}_stage_${stage}_token.webp`;
 
   /* ---------- 核可碼（與 teacher.html 相同演算法） ---------- */
   function approvalCode(cls, seat, stationId) {
@@ -313,7 +313,7 @@
         ${st.project ? `<div class="st-section"><h3>專題任務</h3>${lessonHTML(st.project, "project")}</div>` : ""}
         <div class="st-section"><h3>魔王戰</h3>
           <div class="boss ${bossDone ? "defeated" : ""}">
-            <img class="b-art" src="assets/boss/boss_${st.id}.png" alt="${st.boss.name}" onerror="this.remove()">
+            <img class="b-art" src="assets/boss/boss_${st.id}.webp" alt="${st.boss.name}" onerror="this.remove()">
             <p class="b-name">${bossDone ? "✦ 已擊敗：" : "👾 "}${st.boss.name} <button class="b-replay" data-replay="${st.id}" title="重播魔王對話">▶ 對話</button></p>
             <p class="b-myth"><b>它的迷思：</b>${st.boss.myth}</p>
             <p class="b-hint">破解之道：${st.boss.hint}</p>
@@ -412,7 +412,7 @@
     const P = $("#dlg-player"), PET = $("#dlg-pet"), B = $("#dlg-boss");
     P.src = charImg(stage); PET.src = petImg(stage);
     const hasBoss = !!(st && lines.some(l => l.who === "boss"));
-    B.hidden = !hasBoss; box.classList.toggle("solo", !hasBoss);   /* 沒有魔王時，主角與寵物置中 */ if (hasBoss) { B.src = `assets/boss/boss_${st.id}.png`; B.onerror = () => { B.hidden = true; }; }
+    B.hidden = !hasBoss; box.classList.toggle("solo", !hasBoss);   /* 沒有魔王時，主角與寵物置中 */ if (hasBoss) { B.src = `assets/boss/boss_${st.id}.webp`; B.onerror = () => { B.hidden = true; }; }
     const pet = C.pets.find(p => p.id === profile.pet) || C.pets[0];
     const names = { player: profile.name, pet: pet.name, boss: st ? st.boss.name : "", narrator: "學院之聲" };
     let i = -1, typing = null, full = "", bossShown = false;
@@ -500,7 +500,7 @@
     const pet = C.pets.find(p => p.id === profile.pet) || C.pets[0];
     const need = st.isFinal ? cfg.finalHits : cfg.hits;
     const used = new Set(); let curTier = "basic", hits = 0, hearts = cfg.hearts, combo = 0, right = 0, asked = 0, locked = true, ended = false, timer = null, T = [];
-    $("#bt-boss").src = `assets/boss/boss_${st.id}.png`; $("#bt-player").src = charImg(stage); $("#bt-pet").src = petImg(stage);
+    $("#bt-boss").src = `assets/boss/boss_${st.id}.webp`; $("#bt-player").src = charImg(stage); $("#bt-pet").src = petImg(stage);
     $("#bt-bossname").textContent = st.boss.name;
     const at = (ms, fn) => T.push(setTimeout(() => { if (!ended) fn(); }, ms));
     const log = t => { const L = $("#bt-log"); L.textContent = t; L.hidden = !t; L.classList.remove("pop"); void L.offsetWidth; L.classList.add("pop"); };
